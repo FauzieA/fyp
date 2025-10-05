@@ -2,10 +2,12 @@
 # Configure the base URL and credentials below.
 
 @HOST = http://127.0.0.1:8000
-@ADMIN_USERNAME = antoine
-@ADMIN_PASSWORD = madoolambert
+@ADMIN_USERNAME = centryxadmin
+@ADMIN_PASSWORD = centryxpassword
 @refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc1OTc1MDI3NywiaWF0IjoxNzU5NjYzODc3LCJqdGkiOiJmNmNlOWZkOGVjYzQ0ZGNjODRmYmE4MmUxZDEwYzk4YyIsInVzZXJfaWQiOiIzIn0.vRQAntGPkvmS-iTAvidFF7EjYRa0Sdspcj-o1JDuJXM
-@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU5NjY0NDc3LCJpYXQiOjE3NTk2NjM4NzcsImp0aSI6IjJkM2QxODljYTU1MzQ0OTZiYWRlNGNjOGQ4OTE4N2NmIiwidXNlcl9pZCI6IjMifQ.dUHAkXYOB_RRlAcSL5pM8Ai_dJJLVJrSoNqbuZcQx9U
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU5Njg1OTUwLCJpYXQiOjE3NTk2ODU2NTAsImp0aSI6IjZiMDgwZGUyYWRjZDRhNmZhZjM1ZWE0ZWU3OWJlZTkyIiwidXNlcl9pZCI6IjIifQ.i1nniGpJbKW4ypDXtcfL0iXMGKf1ICXTE1ejpJeWMZA
+
+#*****************************Authentication and User Management Endpoints********************************************
 
 ### 1) Signup (user registration)
 ### Expected: 201 Created with user details (no token)
@@ -40,10 +42,7 @@ Content-Type: application/json
 	"username": "{{ADMIN_USERNAME}}",
 	"password": "{{ADMIN_PASSWORD}}"
 }
-{
-	"username": "testuser",
-	"password": "Testpass123!"
-}
+
 
 ### 3) Refresh JWT
 ### Expected: 200 OK with a new access token
@@ -74,5 +73,18 @@ Authorization: Bearer {{access_token}}
 	"new_password": "Newpass456!"
 }
 
+### 6) Update user inormation
+### Expected: 200 OK with updated user details
+
+PATCH {{HOST}}/auth/users/me/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "email": "newemail@example.com",
+  "first_name": "Antoine",
+  "last_name": "Lambert"
+}
 
 
+#*****************************Authentication and User Management Endpoints********************************************
