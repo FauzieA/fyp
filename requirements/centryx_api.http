@@ -87,4 +87,4 @@ Authorization: Bearer {{access_token}}
 }
 
 
-#*****************************Authentication and User Management Endpoints********************************************
+#*****************************Authentication and User Management Endpoints end********************************************
