@@ -1,0 +1,78 @@
+### Centryx API -  endpoints
+# Configure the base URL and credentials below.
+
+@HOST = http://127.0.0.1:8000
+@ADMIN_USERNAME = antoine
+@ADMIN_PASSWORD = madoolambert
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc1OTc1MDI3NywiaWF0IjoxNzU5NjYzODc3LCJqdGkiOiJmNmNlOWZkOGVjYzQ0ZGNjODRmYmE4MmUxZDEwYzk4YyIsInVzZXJfaWQiOiIzIn0.vRQAntGPkvmS-iTAvidFF7EjYRa0Sdspcj-o1JDuJXM
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU5NjY0NDc3LCJpYXQiOjE3NTk2NjM4NzcsImp0aSI6IjJkM2QxODljYTU1MzQ0OTZiYWRlNGNjOGQ4OTE4N2NmIiwidXNlcl9pZCI6IjMifQ.dUHAkXYOB_RRlAcSL5pM8Ai_dJJLVJrSoNqbuZcQx9U
+
+### 1) Signup (user registration)
+### Expected: 201 Created with user details (no token)
+
+POST {{HOST}}/auth/users/ HTTP/1.1
+Content-Type: application/json
+
+{
+	"username": "testuser",
+	"email": "testuser@example.com",
+	"password": "Testpass123!"
+}
+
+### 2) Login as normal user/ obtain JWT via Djoser JWT create endpoint
+### Expected: 200 OK with access and refresh tokens
+
+POST {{HOST}}/auth/jwt/create/ HTTP/1.1
+Content-Type: application/json
+
+{
+	"username": "testuser",
+	"password": "Testpass123!"
+}
+
+### 2) Login as admin user/ obtain JWT via Djoser JWT create endpoint
+### Expected: 200 OK with access and refresh tokens
+
+POST {{HOST}}/auth/jwt/create/ HTTP/1.1
+Content-Type: application/json
+
+{
+	"username": "{{ADMIN_USERNAME}}",
+	"password": "{{ADMIN_PASSWORD}}"
+}
+{
+	"username": "testuser",
+	"password": "Testpass123!"
+}
+
+### 3) Refresh JWT
+### Expected: 200 OK with a new access token
+
+POST {{HOST}}/auth/jwt/refresh/ HTTP/1.1
+Content-Type: application/json
+
+{
+	"refresh": "{{refresh_token}}"
+}
+
+### 4) Get current user information
+### Expected: 200 OK with user details (requires Authorization header)
+
+GET {{HOST}}/auth/users/me/ HTTP/1.1
+Accept: application/json
+Authorization: Bearer {{access_token}}
+
+### 5) Change password (authenticated)
+### Expected: 204 No Content on success
+
+POST {{HOST}}/auth/users/set_password/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+	"current_password": "Testpass123!",
+	"new_password": "Newpass456!"
+}
+
+
+
