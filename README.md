@@ -1,4 +1,4 @@
-<p align="center" style="font-size: 3em;">
+<p align="center" style="font-size: 8em;">
   🖥️ <strong>Backend Application</strong>
 </p>
 
