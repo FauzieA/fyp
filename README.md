@@ -1,5 +1,5 @@
-<p align="center" style="font-size: 8em;">
-  🖥️ <strong>Backend Application</strong>
+<p align="center" style="font-size: 3em; font-weight: bold;">
+  Backend Application
 </p>
 
 <div align="center">
