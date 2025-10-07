@@ -1,8 +1,8 @@
-<p align="center" style="font-size: 1.5em;">
+<p align="center" style="font-size: 3em;">
   🖥️ <strong>Backend Application</strong>
 </p>
 
-<p align="center">
+<div align="center">
   <table>
     <tr>
       <th>Language</th>
@@ -13,4 +13,4 @@
       <td><img src="https://www.svgrepo.com/show/353657/django-icon.svg" alt="Django" width="100"/><br/>Django</td>
     </tr>
   </table>
-</p>
+</div>
