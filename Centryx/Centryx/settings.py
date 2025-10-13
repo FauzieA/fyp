@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "djoser",
     "rest_framework",
     "drf_spectacular",
+    "cctv",
 ]
 
 MIDDLEWARE = [
