@@ -1,17 +1,16 @@
-from django.test import TestCase
-from django.urls import reverse
-from rest_framework.test import APIClient
-from rest_framework import status
 from django.contrib.auth.models import User
-from djoser.utils import encode_uid
 from django.contrib.auth.tokens import default_token_generator
-from django.test import TestCase, override_settings
 from django.core import mail
-
+from django.test import TestCase, override_settings
+from django.urls import reverse
+from djoser.utils import encode_uid
+from rest_framework import status
+from rest_framework.test import APIClient
 
 # ====================================================================================================
 # Tests for User Authentication Endpoints
 # ====================================================================================================
+
 
 class UserAuthTest(TestCase):
     def setUp(self):
@@ -65,7 +64,8 @@ class UserAuthTest(TestCase):
         refresh_token = response.data["refresh"]
 
         # Test refresh endpoint
-        response = self.client.post("/auth/jwt/refresh/", {"refresh": refresh_token})
+        response = self.client.post(
+            "/auth/jwt/refresh/", {"refresh": refresh_token})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access", response.data)
 
@@ -86,7 +86,9 @@ class UserAuthTest(TestCase):
             "current_password": self.user_data["password"],
             "new_password": "Newpass456!"
         }
-        response = self.client.post("/auth/users/set_password/", new_password_data)
+        response = self.client.post(
+            "/auth/users/set_password/",
+            new_password_data)
 
         # Assert that password change was successful
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
