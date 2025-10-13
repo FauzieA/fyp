@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "djoser",
     "rest_framework",
-    "drf_spectacular",     # added
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -133,13 +133,13 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "EXCEPTION_HANDLER": "Centryx.utils.exception_handler.custom_exception_handler",
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",  # added
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SIMPLE_JWT = {
     # short lived access token, longer lived refresh token
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=440),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
@@ -147,4 +147,30 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Centryx API",
     "DESCRIPTION": "OpenAPI schema for Centryx",
     "VERSION": "1.0.0",
+}
+
+
+
+# Email configuration (using Gmail SMTP)
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'antoine.leno11@gmail.com'
+EMAIL_HOST_PASSWORD = 'ocjw uovq odjb wbpr'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+# Djoser configuration
+DJOSER = {
+    "USER_CREATE_PASSWORD_RETYPE": True,
+    "PASSWORD_RESET_CONFIRM_URL": "password/reset/confirm/{uid}/{token}",
+    "SEND_ACTIVATION_EMAIL": True,
+    "SEND_CONFIRMATION_EMAIL": False,
+    "ACTIVATION_URL": "activate/{uid}/{token}",
+    "SERIALIZERS": {
+        "user_create": "djoser.serializers.UserCreateSerializer",
+        "user": "djoser.serializers.UserSerializer",
+    },
 }
