@@ -157,7 +157,6 @@ SPECTACULAR_SETTINGS = {
 }
 
 
-
 # Email configuration (using Gmail SMTP)
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
