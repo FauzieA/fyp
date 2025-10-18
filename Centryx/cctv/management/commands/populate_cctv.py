@@ -38,8 +38,7 @@ class Command(BaseCommand):
             "IPC-HDW3541EM-S-S2",
             "H3B",
             "IPC-HFW1539DTK1-SW-PV",
-            "P5AS-PV",
-            "DH-KIT/IPC-PT2449B1-4GB20/M0508"
+            "P5AS-PV"
         ]
 
         # Create brand if it doesn't exist
