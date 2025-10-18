@@ -6,6 +6,7 @@ import json
 import requests
 import environ
 from pathlib import Path
+import base64
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -57,15 +58,25 @@ class DahuaAPI:
     def _open_sign(self, method, timestamp, nonce, app_access_token, body):
         body_str = json.dumps(body) if body else ""
         clean_body = self._delete_whitespace(body_str)
+        
+        # SHA512 hash of cleaned body
         body_hash = hashlib.sha512(clean_body.encode("utf-8")).hexdigest() if body_str else ""
-        str_to_sign = f"{self.ACCESS_KEY}{app_access_token}{timestamp}{nonce}{method}{body_hash}"
-
+        
+        # stringToSign includes "POST\n" + body hash
+        string_to_sign = f"{method}\n{body_hash}"
+        
+        # Full string to sign
+        str_auth = f"{self.ACCESS_KEY}{app_access_token}{timestamp}{nonce}{string_to_sign}"
+        
+        # HMAC-SHA512 signature
         sign_result = hmac.new(
             self.SECRET_ACCESS_KEY.encode("utf-8"),
-            str_to_sign.encode("utf-8"),
+            str_auth.encode("utf-8"),
             hashlib.sha512
         ).hexdigest().upper()
+        
         return sign_result
+
 
     # --------------------------------------
     # Obtain AppAccessToken (auto-refresh)
@@ -92,7 +103,7 @@ class DahuaAPI:
 
         if resp.get("code") == "200":
             self.app_access_token = resp["data"]["appAccessToken"]
-            self.token_expiry = time.time() + 24 * 60 * 60
+            self.token_expiry = time.time() + 6.5 * 24 * 60 * 60
         else:
             raise Exception(f"Failed to get AppAccessToken: {resp}")
 
@@ -101,7 +112,7 @@ class DahuaAPI:
     # --------------------------------------
     def _ensure_token(self):
         if not self.app_access_token or time.time() >= self.token_expiry:
-            print("Refreshing AppAccessToken...")
+            # Refreshing AppAccessToken...
             self._get_app_access_token()
 
     # --------------------------------------
@@ -130,39 +141,127 @@ class DahuaAPI:
         url = f"{self.BASE_URL}/{endpoint}"
         response = requests.post(url, headers=headers, json=body)
         return response.json()
+    
 
     # --------------------------------------
-    # Get live video stream
+    # Business APIs
     # --------------------------------------
-    def get_live_stream(self, encrypt_mode=0):
+    
+    def add_device(self, category_code: str, dev_password: str, dev_account: str = "admin"):
+        """
+        Add a device to your DoLynk product using the device_id set in the class.
+
+        Parameters:
+        - category_code (str): The category of the device, e.g., "IPC"
+        - dev_password (str): The device's login password (will be encrypted)
+        - dev_account (str): The device login account, defaults to "admin"
+
+        Returns:
+        - dict: API response from DoLynk
+        """
+
+        # Ensure that self.device_id has been set before calling this method
+        if not self.device_id:
+            raise ValueError("Device ID is not set in the class.")
+
+        # --------------------------
+        # Encrypt the device password
+        # --------------------------
+        encoded_password = base64.b64encode(dev_password.encode("utf-8")).decode("utf-8")
+        encrypted_dev_code = f"Dolynk_{encoded_password}"
+
         payload = {
             "deviceId": self.device_id,
-            "channelId": 0,
-            "businessType": "real",
-            "encryptMode": encrypt_mode
+            "categoryCode": category_code,
+            "devCode": encrypted_dev_code,
+            "devAccount": dev_account
         }
-        return self._post("api-iot/device/createDeviceStreamUrl", payload)
+        return self._post("api-iot/device/addDevice", payload)
 
-    # --------------------------------------
-    # Get playback recording
-    # --------------------------------------
-    def get_recordings(self, begin_time, end_time, encrypt_mode=0):
+
+    def delete_device(self):
+        """
+        Delete the device using self.device_id.
+
+        Raises:
+        - ValueError: If self.device_id is not set.
+        
+        Returns:
+        - dict: API response
+        """
+        # Ensure that self.device_id has been set before calling this method
+        if not self.device_id:
+            raise ValueError("Device ID is not set in the class.")
+
+        payload = {
+            "deviceId": self.device_id
+        }
+
+        return self._post("api-iot/device/deleteDevice", payload)
+    
+
+    def get_live_hls(self, channel_id=0, stream_type=1):
+        """
+        Get the permanent HLS live stream URL for a device.
+
+        Parameters:
+        - channel_id (int): Camera channel (0 for IP cameras, 0-n for NVR channels)
+        - stream_type (int): 0 = HD Main Stream, 1 = SD Sub Stream
+
+        Returns:
+        - dict: API response containing the stream URL in 'data.streamList'
+        """
+        if not self.device_id:
+            raise ValueError("Device ID is not set in the class.")
+
         payload = {
             "deviceId": self.device_id,
-            "channelId": 0,
+            "channelId": channel_id,
+            "streamType": stream_type
+        }
+
+        return self._post("api-iot/device/createDeviceHlsLive", payload)
+
+
+    def get_cloud_recordings(self, begin_time, end_time, channel_id=0, encrypt_mode=0):
+        """
+        Fetch cloud recordings for a device within a time range.
+
+        Parameters:
+        - begin_time (str): Start time in 'yyyy-MM-dd HH:mm:ss' format
+        - end_time (str): End time in 'yyyy-MM-dd HH:mm:ss' format
+        - channel_id (int): Camera channel (0 for IP cameras, 0-n for NVR channels)
+        - encrypt_mode (int): 0 = no encryption, 1 = encrypted
+
+        Returns:
+        - dict: API response containing the cloud recording URL in 'data.url'
+        """
+
+        # Ensure that self.device_id has been set before calling this method
+        if not self.device_id:
+            raise ValueError("Device ID is not set in the class.")
+        payload = {
+            "deviceId": self.device_id,
+            "channelId": channel_id,
             "businessType": "cloudRecord",
             "encryptMode": encrypt_mode,
             "beginTime": begin_time,
             "endTime": end_time
         }
+
         return self._post("api-iot/device/createDeviceStreamUrl", payload)
 
 
+
+
+
+
+
+
 if __name__ == "__main__":
-    api = DahuaAPI()
+    api = DahuaAPI(device_id="5F0679CPAJ7516A")
     try:
-        api._get_app_access_token()
-        print("✅ AppAccessToken fetched successfully!")
-        print("Token:", api.app_access_token)
+        res = api.get_live_hls()
+        print("Live HLS Response:", res)
     except Exception as e:
         print("❌ Failed:", e)
