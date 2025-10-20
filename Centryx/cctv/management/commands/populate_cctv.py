@@ -29,37 +29,3 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.WARNING(
                     f"Super admin '{admin_username}' already exists."))
-
-        # -------------------------
-        # 2) CCTV Brand & Models
-        # -------------------------
-        brand_name = "Dahua"
-        model_names = [
-            "H3B"
-        ]
-
-        # Create brand if it doesn't exist
-        brand_obj, created = Brand.objects.get_or_create(name=brand_name)
-        if created:
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"Brand '{brand_name}' created successfully."))
-        else:
-            self.stdout.write(
-                self.style.WARNING(
-                    f"Brand '{brand_name}' already exists."))
-
-        # Create CCTV models
-        for model_name in model_names:
-            model_obj, created = CCTVModel.objects.get_or_create(
-                name=model_name,
-                brand=brand_obj
-            )
-            if created:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"CCTV model '{model_name}' created under brand '{brand_name}'."))
-            else:
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"CCTV model '{model_name}' already exists under brand '{brand_name}'."))
