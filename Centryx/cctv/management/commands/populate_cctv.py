@@ -35,10 +35,7 @@ class Command(BaseCommand):
         # -------------------------
         brand_name = "Dahua"
         model_names = [
-            "IPC-HDW3541EM-S-S2",
-            "H3B",
-            "IPC-HFW1539DTK1-SW-PV",
-            "P5AS-PV"
+            "H3B"
         ]
 
         # Create brand if it doesn't exist
