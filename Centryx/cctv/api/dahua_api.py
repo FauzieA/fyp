@@ -33,7 +33,7 @@ class DahuaAPI:
         self.app_access_token = None
         self.token_expiry = 0
 
-    # -----------------------------------------------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------
     # Helper methods for request signing and data preprocessing:
     # - _delete_whitespace: removes all whitespace from a string
     # - _open_token_sign: generates HMAC-SHA512 signature for access token requests
@@ -41,7 +41,7 @@ class DahuaAPI:
     #   including optional JSON body preprocessing and hashing
     # _get_app_access_token: obtains and refreshes the AppAccessToken
     # _post: generic method to make signed POST requests to the DoLynk API
-    # -----------------------------------------------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------
 
     @staticmethod
     def _delete_whitespace(s: str):
@@ -144,9 +144,9 @@ class DahuaAPI:
         response = requests.post(url, headers=headers, json=body)
         return response.json()
 
-    # -----------------------------------------------------------------------------------------------------------------------------------
+    # --------------------
     # Business APIs
-    # -----------------------------------------------------------------------------------------------------------------------------------
+    # --------------------
 
     def add_device(
             self,
