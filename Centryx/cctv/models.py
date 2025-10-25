@@ -1,6 +1,7 @@
 import uuid
 
 from django.db import models
+from django.utils import timezone
 
 
 class Brand(models.Model):
@@ -15,7 +16,7 @@ class Brand(models.Model):
 class CCTVModel(models.Model):
     """Model for CCTV Models"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100, unique=True, editable=False)
+    name = models.CharField(max_length=100, unique=True)
     brand = models.ForeignKey(
         Brand,
         on_delete=models.CASCADE,
@@ -25,15 +26,24 @@ class CCTVModel(models.Model):
         return self.name
 
 
-class CCTV(models.Model):
+class Camera(models.Model):
     """Model for CCTV"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    identifier = models.CharField(max_length=100, unique=True, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    identifier = models.CharField(max_length=100, unique=True)
     model = models.ForeignKey(
         CCTVModel,
         on_delete=models.CASCADE,
         related_name='cctvs')
     location = models.CharField(max_length=255)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    'identifier',
+                    'model'],
+                name='unique_camera_per_model')]
 
     def __str__(self):
         return f"{self.identifier} - {self.model.name}"

@@ -33,4 +33,7 @@ urlpatterns = [
     # Auth endpoints
     path("auth/", include("djoser.urls")),
     path("auth/", include("djoser.urls.jwt")),
+
+    # CCTV endpoints
+    path("cctv/", include("cctv.urls")),
 ]

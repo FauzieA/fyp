@@ -1,6 +1,7 @@
-from django.core.management.base import BaseCommand
-from cctv.models import Brand, CCTVModel
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+
+from cctv.models import Brand, CCTVModel
 
 User = get_user_model()
 
@@ -29,3 +30,19 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.WARNING(
                     f"Super admin '{admin_username}' already exists."))
+
+        # -------------------------
+        # 2) CCTV Brand data
+        # -------------------------
+        brands = ["Dahua"]
+
+        for brand_name in brands:
+            brand, created = Brand.objects.get_or_create(name=brand_name)
+            if created:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Brand '{brand_name}' added."))
+            else:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Brand '{brand_name}' already exists."))

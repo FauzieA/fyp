@@ -28,8 +28,7 @@ class DahuaAPI:
     PRODUCT_ID = env("DAHUA_PRODUCT_ID")
     VERSION = env("DAHUA_VERSION", default="v1")
 
-    def __init__(self, device_id=None):
-        self.device_id = device_id
+    def __init__(self):
         self.app_access_token = None
         self.token_expiry = 0
 
@@ -150,6 +149,7 @@ class DahuaAPI:
 
     def add_device(
             self,
+            device_id: str,
             dev_password: str,
             category_code: str = "IPC",
             dev_account: str = "admin"):
@@ -169,7 +169,7 @@ class DahuaAPI:
             ** Enable motion : https://open.dolynkcloud.com/platform/develop/doccenter/doc?d=1715309164030x1724915269635
         """
 
-        if not self.device_id:
+        if not device_id:
             raise ValueError("Device ID is not set in the class.")
 
         # Encrypt the device password
@@ -178,18 +178,20 @@ class DahuaAPI:
         encrypted_dev_code = f"Dolynk_{encoded_password}"
 
         payload = {
-            "deviceId": self.device_id,
+            "deviceId": device_id,
             "categoryCode": category_code,
             "devCode": encrypted_dev_code,
             "devAccount": dev_account
         }
         response = self._post("api-iot/device/addDevice", payload)
+
         if response.get("code") != "200":
-            return {"code": "400", "message": "Failed to add device."}
+            pass
+            # return response
 
         # Check if motion detection is supported
         check_payload = {
-            "deviceId": self.device_id,
+            "deviceId": device_id,
             "channelId": "0",
             "abilityType": "motionDetect"
         }
@@ -204,7 +206,7 @@ class DahuaAPI:
         ):
             if check_response["data"]["status"] == "off":
                 enable_payload = {
-                    "deviceId": self.device_id,
+                    "deviceId": device_id,
                     "channelId": "0",
                     "abilityType": "motionDetect",
                     "status": "on"
@@ -217,29 +219,29 @@ class DahuaAPI:
                         "code": "200",
                         "message": "Device added and motion detection enabled successfully."}
         else:
-            self.delete_device()
+            self.delete_device(device_id)
             return {
                 "code": "400",
                 "message": "Device does not support motion detection."
             }
 
-    def delete_device(self):
+    def delete_device(self, device_id: str):
         """
-        Delete the device using self.device_id.
+        Delete the device using device_id.
 
         Raises:
-        - ValueError: If self.device_id is not set.
+        - ValueError: If device_id is not set.
 
         Returns:
         - dict: API response
         API Reference: https://open.dolynkcloud.com/platform/develop/doccenter/doc?d=1715309164030x1724914667805
         """
-        # Ensure that self.device_id has been set before calling this method
-        if not self.device_id:
-            raise ValueError("Device ID is not set in the class.")
+        # Ensure that device_id has been set before calling this method
+        if not device_id:
+            raise ValueError("Device ID is not set.")
 
         payload = {
-            "deviceId": self.device_id
+            "deviceId": device_id
         }
 
         return self._post("api-iot/device/deleteDevice", payload)
@@ -248,18 +250,13 @@ class DahuaAPI:
         """
         Fetch device models for specified camera categories from DoLynk.
 
-        Args:
-            categories (dict, optional): Mapping of categoryCode -> displayName.
-                Defaults to {"IPC": "NetworkCameras", "PTZ": "PTZCameras"}.
-
-        Returns:
-            dict: Keys are display names, values are lists of device models.
+        Returns only the list of device models, ignoring category names.
         """
         if categories is None:
             categories = {"IPC": "NetworkCameras", "SD": "PTZCameras"}
 
-        all_models = {}
-        for code, display_name in categories.items():
+        all_models = []
+        for code in categories.keys():
             payload = {"secondCategoryCode": code}
             response = self._post("api-iot/device/getCategory", payload)
 
@@ -267,15 +264,20 @@ class DahuaAPI:
                     "data") and response["data"].get("categoryList"):
                 models = response["data"]["categoryList"][0].get(
                     "deviceModel", [])
-                all_models[display_name] = models
-            else:
-                all_models[display_name] = []
+                all_models.extend(models)
 
         return all_models
 
     def get_stream_url(
-            self, channel_id=0, business_type="real", encrypt_mode=0,
-            stream_type=0, proto_type="rtsp", begin_time=None, end_time=None):
+            self,
+            device_id,
+            channel_id=0,
+            business_type="real",
+            encrypt_mode=0,
+            stream_type=0,
+            proto_type="rtsp",
+            begin_time=None,
+            end_time=None):
         """
         Get the temporary streaming URL for live view or playback (local/cloud recording).
 
@@ -287,12 +289,12 @@ class DahuaAPI:
         API Reference:
         https://open.dolynkcloud.com/platform/develop/doccenter/doc?d=1715309164030x1724932054107
         """
-        if not self.device_id:
-            raise ValueError("Device ID is not set in the class.")
+        if not device_id:
+            raise ValueError("Device ID is not set.")
 
         # Base payload for all stream types
         payload = {
-            "deviceId": self.device_id,
+            "deviceId": device_id,
             "channelId": str(channel_id),
             "businessType": business_type,
             "encryptMode": encrypt_mode,
