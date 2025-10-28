@@ -186,8 +186,7 @@ class DahuaAPI:
         response = self._post("api-iot/device/addDevice", payload)
 
         if response.get("code") != "200":
-            pass
-            # return response
+            return response
 
         # Check if motion detection is supported
         check_payload = {

@@ -1,7 +1,7 @@
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
-from integration.services.cctv_services import get_dahua_client
+from integration.services.cctv_services import get_dahua_client, get_hikvision_client
 from rest_framework import generics, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -11,43 +11,94 @@ from cctv.models import Brand, Camera
 from cctv.serializers import BrandSerializer, CameraCreateSerializer
 
 dahua = get_dahua_client()
-brands = {'dahua': dahua}
+hikvision = get_hikvision_client()
+brands = {'dahua': dahua, 'hikvision': hikvision}
 
 
 class AddCCTVView(APIView):
     """
-    View to add a new CCTV device.
+    Add a new CCTV device.
     """
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def post(self, request):
         data = request.data
+        brand = data.get("brand", "").lower()
+
         try:
-            match data['brand'].lower():
-                case 'dahua':
-                    response = brands['dahua'].add_device(
-                        device_id=data['identifier'],
-                        dev_account=data['username'],
-                        dev_password=data['dev_password']
-                    )
-                    if response.get("code") != "200":
-                        return Response({"error": response.get(
-                            "message")}, status=status.HTTP_400_BAD_REQUEST)
+            match brand:
+                # ----------------------------
+                #  Dahua device
+                # ----------------------------
+                case "dahua":
+                    try:
+                        response = brands["dahua"].add_device(
+                            device_id=data.get("identifier"),
+                            dev_account=data.get("username"),
+                            dev_password=data.get("dev_password"),
+                        )
+                        if response.get("code") != "200":
+                            return Response(
+                                {"error": response.get("msg")},
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+                    except Exception as e:
+                        return Response(
+                            {"error": str(e)},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                # ----------------------------
+                #  Hikvision / Ezviz device
+                # ----------------------------
+                case "hikvision":
+                    try:
+                        ezviz_serial_no = data.get("ezviz_serial_no")
+                        ezviz_verify_code = data.get("ezviz_verify_code")
+
+                        # For Hikvision IP cameras, require username/password
+                        response = brands["hikvision"].add_device(
+                            name=data.get("location", "Unnamed Camera"),
+                            ezviz_serial_no=ezviz_serial_no,
+                            ezviz_verify_code=ezviz_verify_code,
+                        )
+                        if response.get("errorCode") not in ("0", 0):
+                            return Response(
+                                {"error": response.get("errorCode", "Failed to add Hikvision device.")},
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+                        data['identifier'] = (
+                            response.get("data", {})
+                            .get("addDeviceResponse", {})
+                            .get("deviceList", [{}])[0]
+                            .get("deviceId"), "3333"
+                        )
+                    except Exception as e:
+                        return Response(
+                            {"error": str(e)},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
                 case _:
                     raise ValueError("Unsupported brand")
+
+            # Save to database if API succeeded
             serializer = CameraCreateSerializer(data=data)
             serializer.is_valid(raise_exception=True)
             serializer.save()
+
             return Response(
-                {"message": "CCTV device added successfully."}, status=status.HTTP_201_CREATED)
+                {"message": f"{brand.capitalize()} CCTV device added successfully."},
+                status=status.HTTP_201_CREATED,
+            )
         except Exception as e:
-            return Response({"error": str(e)},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class DeleteCCTVView(APIView):
     """
-    View to delete a CCTV device.
+    Delete a CCTV device.
     """
     permission_classes = [IsAuthenticated, IsAdminUser]
 
@@ -76,6 +127,10 @@ class DeleteCCTVView(APIView):
                     if response.get("code") != "200":
                         return Response({"error": response.get(
                             "msg")}, status=status.HTTP_400_BAD_REQUEST)
+                case 'hikvision':
+                    response = hikvision.delete_device(device_id=identifier)
+                    if response.get("errorCode") != "0":
+                        return Response({"error": "Device does not exist"}, status=status.HTTP_400_BAD_REQUEST)
                 case _:
                     raise ValueError("Unsupported brand")
 
@@ -92,7 +147,7 @@ class DeleteCCTVView(APIView):
 
 class GetStreamUrlView(APIView):
     """
-    API endpoint to retrieve live stream or recording playback URLs for CCTV devices.
+    Retrieve live stream or recording playback URLs for CCTV devices.
     """
 
     permission_classes = [IsAuthenticated]
@@ -103,9 +158,6 @@ class GetStreamUrlView(APIView):
         """
         brand_name = request.query_params.get('brand')
         identifier = request.query_params.get('identifier')
-        business_type = request.query_params.get('business_type', 'real')
-        begin_time = request.query_params.get('begin_time')
-        end_time = request.query_params.get('end_time')
 
         if not brand_name or not identifier:
             return Response(
@@ -116,6 +168,9 @@ class GetStreamUrlView(APIView):
         try:
             match brand_name.lower():
                 case 'dahua':
+                    business_type = request.query_params.get('business_type', 'real')
+                    begin_time = request.query_params.get('begin_time')
+                    end_time = request.query_params.get('end_time')
                     # For playback, times are required
                     if business_type in ['localRecord', 'cloudRecord']:
                         if not begin_time or not end_time:
@@ -145,7 +200,28 @@ class GetStreamUrlView(APIView):
                         "type": business_type,
                         "stream_url": response.get("url")
                     })
+                case 'hikvision':
+                    # Call Hikvision api
+                    s_type = request.query_params.get('type')
+                    start_time: str = request.query_params.get('start_time', "")
+                    stop_time: str = request.query_params.get('stop_time', "")
 
+                    response = hikvision.get_stream(device_id=identifier,
+                                                        type_=s_type,
+                                                        start_time=start_time,
+                                                        stop_time=stop_time,
+                                                        expire_time=600
+                                                        )
+                    if response.get("errorCode") != "0":
+                        return Response(
+                            {"error": response.get("errorMsg", "Failed to get stream URL")},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    return Response({
+                        "brand": brand_name,
+                        "type": s_type,
+                        "stream_url": response.get("url")
+                    })
                 case _:
                     return Response(
                         {"error": f"Unsupported brand '{brand_name}'"},
@@ -161,7 +237,7 @@ class GetStreamUrlView(APIView):
 
 class BrandListView(generics.ListAPIView):
     """
-    View to list all CCTV brands.
+    List all CCTV brands.
     """
     permission_classes = [IsAuthenticated, IsAdminUser]
     queryset = Brand.objects.all()
@@ -170,7 +246,7 @@ class BrandListView(generics.ListAPIView):
 
 class BrandModelListView(APIView):
     """
-    View to list all CCTV models for a specific brand.
+    List all CCTV models for a specific brand.
     """
 
     permission_classes = [IsAuthenticated, IsAdminUser]

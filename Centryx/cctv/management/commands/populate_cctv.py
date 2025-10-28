@@ -34,7 +34,7 @@ class Command(BaseCommand):
         # -------------------------
         # 2) CCTV Brand data
         # -------------------------
-        brands = ["Dahua"]
+        brands = ["Dahua","Hikvision"]
 
         for brand_name in brands:
             brand, created = Brand.objects.get_or_create(name=brand_name)
