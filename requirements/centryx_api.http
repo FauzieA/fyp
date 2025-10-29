@@ -288,7 +288,13 @@ Authorization: Bearer {{access_token}}
 GET {{HOST}}/cctv/get_device_status/?brand=Hikvision
 Authorization: Bearer {{access_token}}
 
-### 11) Test Motion Detection Callback (simulating DoLynk push)
+### 11) Get Device Status of a Dahua CCTV Camera
+### Expected: 200 OK with online/offline status of the device
+GET {{HOST}}/cctv/get_device_status/?brand=Dahua&identifier=YOUR_DEVICE_ID_HERE HTTP/1.1
+Authorization: Bearer {{access_token}}
+
+
+### 12) Test Motion Detection Callback (simulating DoLynk push)
 ### Expected: 200 OK with {"code": "200", "message": "received"}
 
 POST {{HOST}}/integration/motion-callback/ HTTP/1.1

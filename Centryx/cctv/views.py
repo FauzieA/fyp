@@ -1,7 +1,8 @@
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
-from integration.services.cctv_services import get_dahua_client, get_hikvision_client
+from integration.services.cctv_services import (get_dahua_client,
+                                                get_hikvision_client)
 from rest_framework import generics, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -252,6 +253,7 @@ class GetDeviceStatusView(APIView):
         Get the device status for a CCTV device.
         """
         brand_name = request.query_params.get('brand')
+        identifier = request.query_params.get('identifier')
 
         if not brand_name:
             return Response(
@@ -263,6 +265,14 @@ class GetDeviceStatusView(APIView):
             match brand_name.lower():
                 case 'hikvision':
                     data = hikvision.list_devices_with_status()
+                    return Response(data)
+                case 'dahua':
+                    if not identifier:
+                        return Response(
+                            {"error": "Missing identifier"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    data = dahua.get_device_status(device_id=identifier)
                     return Response(data)
                 case _:
                     return Response(

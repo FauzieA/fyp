@@ -322,3 +322,35 @@ class DahuaAPI:
                 "message": f"Failed to get {business_type} stream URL.",
                 "response": response
             }
+
+    def get_device_status(self, device_id: str):
+        """
+        Get the online/offline status of a single Dahua device.
+
+        Parameters:
+        - device_id (str): The unique device ID or serial number.
+
+        Returns:
+        - dict: API response containing the device's online/offline status.
+        API Reference:
+            /open-api/api-iot/device/deviceOnline
+        """
+        if not device_id:
+            raise ValueError("device_id is required.")
+
+        payload = {"deviceId": device_id}
+        response = self._post("api-iot/device/deviceOnline", payload)
+
+        if response.get("code") == "200" and response.get("success"):
+            data = response.get("data", {})
+            return {
+                "code": "200",
+                "deviceId": data.get("deviceId", device_id),
+                "status": data.get("status", "unknown")
+            }
+        else:
+            return {
+                "code": response.get("code", "400"),
+                "message": "Failed to retrieve device status.",
+                "response": response
+            }
