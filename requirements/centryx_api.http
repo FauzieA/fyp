@@ -150,6 +150,72 @@ Content-Type: application/json
 	"password": "Newpass456!"
 }
 
+
+#*****************************Multi-Factor Authentication (Django Trench)********************************************
+
+### 1) Activate MFA using App (Google Authenticator)
+### Expected: 200 OK → returns secret key / QR code
+POST {{HOST}}/auth/app/activate/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+### 2) Confirm activation (enter 6-digit code from authenticator app)
+### Expected: 204 No Content = activation successful
+POST {{HOST}}/auth/app/activate/confirm/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "code": "123456"
+}
+
+
+### 3) Login first step (username + password → MFA challenge)
+POST {{HOST}}/auth/login/ HTTP/1.1
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "Newpass456!"
+}
+
+### 4) Login second step (submit OTP code)
+POST {{HOST}}/auth/login/code/ HTTP/1.1
+Content-Type: application/json
+
+{
+  "method": "app",
+  "code": "123456"
+}
+
+### 5) Deactivate MFA (app)
+POST {{HOST}}/auth/app/deactivate/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "code": "123456"
+}
+
+### 6) Regenerate backup codes
+POST {{HOST}}/auth/app/codes/regenerate/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "code": "123456"
+}
+
+
+### 7) View MFA configuration
+GET {{HOST}}/auth/mfa/config/ HTTP/1.1
+Authorization: Bearer {{access_token}}
+
+### 8) List user’s active methods
+GET {{HOST}}/auth/mfa/user-active-methods/ HTTP/1.1
+Authorization: Bearer {{access_token}}
+
+
 #*****************************Authentication and User Management Endpoints end********************************************
 
 

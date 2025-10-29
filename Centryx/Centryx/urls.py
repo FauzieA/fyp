@@ -33,6 +33,8 @@ urlpatterns = [
     # Auth endpoints
     path("auth/", include("djoser.urls")),
     path("auth/", include("djoser.urls.jwt")),
+    path("auth/", include("trench.urls")),
+    path("auth/", include("trench.urls.jwt")),
 
     # CCTV endpoints
     path("cctv/", include("cctv.urls")),
