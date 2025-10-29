@@ -29,7 +29,9 @@ class CameraSerializer(serializers.ModelSerializer):
 
 
 class CameraCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating Camera with existing brand and new/existing model"""
+    """Serializer for creating Camera with existing
+    brand and new/existing model
+    """
     brand = serializers.CharField(write_only=True)
     model_name = serializers.CharField(write_only=True)
 

@@ -11,6 +11,7 @@ def get_dahua_client():
     """Return the shared Dahua API client instance."""
     return dahua_service
 
+
 def get_hikvision_client():
     """Return the shared Hikvision API client instance."""
     return hikvision_service

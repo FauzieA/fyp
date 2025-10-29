@@ -6,8 +6,8 @@
 @HOST = http://127.0.0.1:8000
 @ADMIN_USERNAME = centryxadmin
 @ADMIN_PASSWORD = centryxpassword
-@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NDI0OTMwMywiaWF0IjoxNzYxNjU3MzAzLCJqdGkiOiJhZmI3Y2M4ZTg5MTQ0OGVkODAxN2Q4MjI2MmJkNmZlYyIsInVzZXJfaWQiOiIxIn0.dFO8y1BvHB9PhBsd66kpf0KwadOQxkaViKnR6L80-WA
-@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYxNjgzNzAzLCJpYXQiOjE3NjE2NTczMDMsImp0aSI6IjVlMDkxODljMTUzMjQyNDBiOWQ2NjA3ZmI0MmEyOTBiIiwidXNlcl9pZCI6IjEifQ.Q0IrKsyrO2bCbq-llWpDKkF9ZaGCkUJplliF4LuRY0s
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NDM0NDMwOSwiaWF0IjoxNzYxNzUyMzA5LCJqdGkiOiJkNGIzZDRjZWYyNmY0NTVlOTVlYzAwMmY5NGZmMmUxMCIsInVzZXJfaWQiOiIxIn0.DY7zmTAERl-kmgFMGINLxpD9bOi6t8254aNezUvjIWU
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYxNzc4NzA5LCJpYXQiOjE3NjE3NTIzMDksImp0aSI6IjQ1NThiZjdjNTYwODQ2NzFhODJhNDc1NDJjZDBmNjJhIiwidXNlcl9pZCI6IjEifQ.mg3abLK2rKMO-3qgLjz2wk101zpZZeexF85ld4WWSg8
 
 #*****************************Authentication and User Management Endpoints********************************************
 
@@ -156,7 +156,30 @@ Content-Type: application/json
 
 #*****************************CCTV managment Endpoints********************************************
 
-### 1) Add a new CCTV device with unexisting model
+### 1) Get all CCTV brands
+### Expected: 200 OK with list of brands
+
+GET {{HOST}}/cctv/get_brands/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+
+### 2) Get all models for a Dahua brand
+### Expected: 200 OK with list of models
+
+GET {{HOST}}/cctv/get_models/Dahua/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+### 3) Get all models for a Hikvision brand
+### Expected: 200 OK with list of models
+
+GET {{HOST}}/cctv/get_models/Hikvision/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+
+### 4) Add a new Dahua CCTV device with unexisting model
 ### Expected: 200 OK with device addition status
 
 POST {{HOST}}/cctv/add_device/ HTTP/1.1
@@ -172,7 +195,7 @@ Authorization: Bearer {{access_token}}
     "dev_password": "admin123"
 }
 
-### 2) Add a new Dahua CCTV device with existing model
+### 5) Add a new Dahua CCTV device with existing model
 ### Expected: 200 OK with device addition status
 
 POST {{HOST}}/cctv/add_device/ HTTP/1.1
@@ -189,7 +212,7 @@ Authorization: Bearer {{access_token}}
 }
 
 
-### 3) Add a new Dahua CCTV device from Hikvision brand
+### 6) Add a new CCTV device from Hikvision brand
 ### Expected: 200 OK with device addition status
 POST {{HOST}}/cctv/add_device/ HTTP/1.1
 Content-Type: application/json
@@ -203,23 +226,8 @@ Authorization: Bearer {{access_token}}
     "ezviz_verify_code": "admin123"
 }
 
-### 4) Get all brands
-### Expected: 200 OK with list of brands
 
-GET {{HOST}}/cctv/get_brands/ HTTP/1.1
-Content-Type: application/json
-Authorization: Bearer {{access_token}}
-
-
-### 5) Get all models for a specific brand
-### Expected: 200 OK with list of models
-
-GET {{HOST}}/cctv/get_models/Dahua/ HTTP/1.1
-Content-Type: application/json
-Authorization: Bearer {{access_token}}
-
-
-### 6) Delete a Hikvision CCTV device
+### 7) Delete a Hikvision CCTV device
 ### Expected: 204 No Content on success
 
 POST {{HOST}}/cctv/delete_device/ HTTP/1.1
@@ -232,7 +240,7 @@ Authorization: Bearer {{access_token}}
 }
 
 
-### 6) Delete a Dahua CCTV device
+### 7) Delete a Dahua CCTV device
 ### Expected: 204 No Content on success
 
 POST {{HOST}}/cctv/delete_device/ HTTP/1.1
@@ -245,14 +253,53 @@ Authorization: Bearer {{access_token}}
 }
 
 
-### Get Live or Playback Stream of a CCTV Camera
+### 8) Get Live Stream of a Hikvision CCTV Camera
 ### Expected: 200 OK with stream URL and expiry time
 
-### Get Live Stream of a CCTV Camera
-### Expected: 200 OK with stream URL and expiry time
 
 GET {{HOST}}/cctv/get_stream_url/?identifier=YOUR_DEVICE_ID_HERE&brand=Hikvision&type=2 HTTP/1.1
 Authorization: Bearer {{access_token}}
+
+### 9) Get Recording url of a Hikvision CCTV Camera
+### Expected: 200 OK with stream URL and expiry time
+
+
+GET {{HOST}}/cctv/get_stream_url/?identifier=YOUR_DEVICE_ID_HERE&brand=Hikvision&type=2&start_time=2025-10-29T08:00:00&stop_time=2025-10-29T10:00:00 HTTP/1.1
+Authorization: Bearer {{access_token}}
+
+
+### 10) Get Live Stream of a Dahua CCTV Camera
+### Expected: 200 OK with stream URL and expiry time
+
+
+GET {{HOST}}/cctv/get_stream_url/?identifier=YOUR_DEVICE_ID_HERE&brand=Dahua HTTP/1.1
+Authorization: Bearer {{access_token}}
+
+### 9) Get Recording url of a Dahua CCTV Camera
+### Expected: 200 OK with stream URL and expiry time
+
+
+GET {{HOST}}/cctv/get_stream_url/?identifier=YOUR_DEVICE_ID_HERE&brand=Dahua&begin_time=2025-10-29T08:00:00&stop_time=2025-10-29T10:00:00 HTTP/1.1
+Authorization: Bearer {{access_token}}
+
+
+### 10) Get Device Status of a Hikvision CCTV Camera
+### Expected: 200 OK with online/offline status of the device
+GET {{HOST}}/cctv/get_device_status/?brand=Hikvision
+Authorization: Bearer {{access_token}}
+
+### 11) Test Motion Detection Callback (simulating DoLynk push)
+### Expected: 200 OK with {"code": "200", "message": "received"}
+
+POST {{HOST}}/integration/motion-callback/ HTTP/1.1
+Content-Type: application/json
+
+{
+  "eventType": "motionDetect",
+  "deviceId": "DAHUA123457",
+  "status": "start",
+  "timestamp": "2025-10-30T15:20:00Z"
+}
 
 
 #*****************************CCTV managment Endpoints end********************************************/

@@ -56,7 +56,6 @@ class AddCCTVView(APIView):
                         ezviz_serial_no = data.get("ezviz_serial_no")
                         ezviz_verify_code = data.get("ezviz_verify_code")
 
-                        # For Hikvision IP cameras, require username/password
                         response = brands["hikvision"].add_device(
                             name=data.get("location", "Unnamed Camera"),
                             ezviz_serial_no=ezviz_serial_no,
@@ -64,7 +63,10 @@ class AddCCTVView(APIView):
                         )
                         if response.get("errorCode") not in ("0", 0):
                             return Response(
-                                {"error": response.get("errorCode", "Failed to add Hikvision device.")},
+                                {
+                                    "error": response.get(
+                                        "errorCode",
+                                        "Failed to add Hikvision device. Please check the device credentials and ensure it is online.")},
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
                         data['identifier'] = (
@@ -116,6 +118,7 @@ class DeleteCCTVView(APIView):
             camera = Camera.objects.filter(
                 identifier=identifier,
                 model__brand__name=brand_name).first()
+
             if not camera:
                 return Response({"error": "Camera not found"},
                                 status=status.HTTP_404_NOT_FOUND)
@@ -125,12 +128,13 @@ class DeleteCCTVView(APIView):
                 case 'dahua':
                     response = dahua.delete_device(device_id=identifier)
                     if response.get("code") != "200":
-                        return Response({"error": response.get(
-                            "msg")}, status=status.HTTP_400_BAD_REQUEST)
+                        return Response(
+                            {"error": "The Dahua device could not be deleted."}, status=status.HTTP_400_BAD_REQUEST)
                 case 'hikvision':
                     response = hikvision.delete_device(device_id=identifier)
                     if response.get("errorCode") != "0":
-                        return Response({"error": "Device does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+                        return Response(
+                            {"error": "Device does not exist"}, status=status.HTTP_400_BAD_REQUEST)
                 case _:
                     raise ValueError("Unsupported brand")
 
@@ -168,7 +172,8 @@ class GetStreamUrlView(APIView):
         try:
             match brand_name.lower():
                 case 'dahua':
-                    business_type = request.query_params.get('business_type', 'real')
+                    business_type = request.query_params.get(
+                        'business_type', 'real')
                     begin_time = request.query_params.get('begin_time')
                     end_time = request.query_params.get('end_time')
                     # For playback, times are required
@@ -186,7 +191,6 @@ class GetStreamUrlView(APIView):
                         begin_time=begin_time,
                         end_time=end_time
                     )
-
                     # Handle API failure
                     if response.get("code") != "200":
                         return Response(
@@ -203,15 +207,16 @@ class GetStreamUrlView(APIView):
                 case 'hikvision':
                     # Call Hikvision api
                     s_type = request.query_params.get('type')
-                    start_time: str = request.query_params.get('start_time', "")
+                    start_time: str = request.query_params.get(
+                        'start_time', "")
                     stop_time: str = request.query_params.get('stop_time', "")
 
                     response = hikvision.get_stream(device_id=identifier,
-                                                        type_=s_type,
-                                                        start_time=start_time,
-                                                        stop_time=stop_time,
-                                                        expire_time=600
-                                                        )
+                                                    type_=s_type,
+                                                    start_time=start_time,
+                                                    stop_time=stop_time,
+                                                    expire_time=600
+                                                    )
                     if response.get("errorCode") != "0":
                         return Response(
                             {"error": response.get("errorMsg", "Failed to get stream URL")},
@@ -222,6 +227,43 @@ class GetStreamUrlView(APIView):
                         "type": s_type,
                         "stream_url": response.get("url")
                     })
+                case _:
+                    return Response(
+                        {"error": f"Unsupported brand '{brand_name}'"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class GetDeviceStatusView(APIView):
+    """
+    Retrieve online/offline status for Hikvision CCTV device.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Get the device status for a CCTV device.
+        """
+        brand_name = request.query_params.get('brand')
+
+        if not brand_name:
+            return Response(
+                {"error": "Missing brand"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            match brand_name.lower():
+                case 'hikvision':
+                    data = hikvision.list_devices_with_status()
+                    return Response(data)
                 case _:
                     return Response(
                         {"error": f"Unsupported brand '{brand_name}'"},

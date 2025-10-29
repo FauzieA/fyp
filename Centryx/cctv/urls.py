@@ -1,7 +1,7 @@
 from django.urls import path
 
 from cctv.views import (AddCCTVView, BrandListView, BrandModelListView,
-                        DeleteCCTVView, GetStreamUrlView)
+                        DeleteCCTVView, GetDeviceStatusView, GetStreamUrlView)
 
 urlpatterns = [
     path(
@@ -24,4 +24,7 @@ urlpatterns = [
         'get_models/<str:brand_name>/',
         BrandModelListView.as_view(),
         name='get_cctv_models'),
+    path('get_device_status/',
+         GetDeviceStatusView.as_view(),
+         name='get_device_status'),
 ]

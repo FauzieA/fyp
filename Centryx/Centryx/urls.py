@@ -36,4 +36,5 @@ urlpatterns = [
 
     # CCTV endpoints
     path("cctv/", include("cctv.urls")),
+    path("integration/", include("integration.urls")),
 ]
