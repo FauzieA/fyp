@@ -354,3 +354,12 @@ class DahuaAPI:
                 "message": "Failed to retrieve device status.",
                 "response": response
             }
+            
+
+
+if __name__ == "__main__":
+    dahua_api = DahuaAPI()
+    # Example usage:
+    # response = dahua_api.add_device
+    print(dahua_api.add_device("YOUR_DEVICE_ID", "YOUR_DEVICE_PASSWORD"))
+
