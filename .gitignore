@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *.sqlite3
+*.env
 *.log
 venv/
 Centryx/__pycache__/
@@ -16,7 +17,7 @@ db.sqlite3
 # Node/React
 node_modules/
 build/
-
+.env
 
 # Docker
 *.pid
