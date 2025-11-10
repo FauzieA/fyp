@@ -1,6 +1,7 @@
+import logging
 import os
 import threading
-import logging
+
 from django.apps import AppConfig
 
 logger = logging.getLogger(__name__)
@@ -15,7 +16,8 @@ class IntegrationConfig(AppConfig):
         try:
             # Prevent multiple threads when running with Gunicorn/Reload
             if os.environ.get("RUN_MAIN") == "true":
-                from integration.services.hikvision_motion_listener import listen_for_motion
+                from integration.services.hikvision_motion_listener import \
+                    listen_for_motion
                 thread = threading.Thread(
                     target=listen_for_motion, daemon=True)
                 thread.start()

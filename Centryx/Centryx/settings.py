@@ -10,9 +10,19 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import warnings
 from datetime import timedelta
 from pathlib import Path
+
 import environ
+
+# Suppress deprecation warnings from dj-rest-auth using old allauth settings
+warnings.filterwarnings(
+    "ignore",
+    message=r"app_settings\.(USERNAME_REQUIRED|EMAIL_REQUIRED|AUTHENTICATION_METHOD) is deprecated",
+    category=UserWarning,
+    module=r"dj_rest_auth.*"
+)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,7 +42,7 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", ".ngrok-free.dev"]
 
 
 # Application definition
@@ -44,13 +54,27 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "djoser",
-    'trench',
+    "django.contrib.sites",  # Required for allauth
+
+    # REST framework
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",  # Required for JWT logout
     "drf_spectacular",
+
+    # Authentication
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",  # Required by dj-rest-auth.registration
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
+    "trench",  # 2FA/MFA for REST APIs
+
+    # Your apps
     "cctv",
     "integration",
 ]
+
+SITE_ID = 1
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -60,6 +84,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",  # Required for allauth
 ]
 
 ROOT_URLCONF = "Centryx.urls"
@@ -130,6 +155,10 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+# Media files (user uploaded)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
@@ -150,6 +179,9 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=440),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
 }
 
 SPECTACULAR_SETTINGS = {
@@ -170,29 +202,61 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
-# Djoser configuration
-DJOSER = {
-    "USER_CREATE_PASSWORD_RETYPE": True,
-    "PASSWORD_RESET_CONFIRM_URL": "password/reset/confirm/{uid}/{token}",
-    "SEND_ACTIVATION_EMAIL": True,
-    "SEND_CONFIRMATION_EMAIL": False,
-    "ACTIVATION_URL": "activate/{uid}/{token}",
-    "SERIALIZERS": {
-        "user_create": "djoser.serializers.UserCreateSerializer",
-        "user": "djoser.serializers.UserSerializer",
-    },
+# dj-rest-auth configuration
+REST_AUTH = {
+    "USE_JWT": True,
+    "JWT_AUTH_COOKIE": None,
+    "JWT_AUTH_REFRESH_COOKIE": None,
+    "JWT_AUTH_HTTPONLY": False,
+    "TOKEN_MODEL": None,  # Disable TokenAuthentication, use JWT only
+    "USER_DETAILS_SERIALIZER": "integration.serializers.CustomUserSerializer",
+    "REGISTER_SERIALIZER": "integration.serializers.CustomRegisterSerializer",
 }
 
-# Redis cache configuration
+# django-allauth configuration (v65+ format)
+# Login methods - allow both username and email
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
+
+# Email verification settings
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"  # User must verify email before login
+ACCOUNT_UNIQUE_EMAIL = True  # Enforce unique email addresses
+
+# Signup fields configuration (v65+ format)
+# Fields marked with * are required
+ACCOUNT_SIGNUP_FIELDS = [
+    "email*",      # Email is required
+    "username*",   # Username is required
+    "password1*",  # Password is required
+    "password2*"   # Password confirmation is required
+]
+
+# User model field mappings
+ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
+ACCOUNT_USER_MODEL_EMAIL_FIELD = "email"
+
+# Additional settings
+ACCOUNT_PRESERVE_USERNAME_CASING = True
+
+
+# Cache configuration (using in-memory cache for development to be deleted
+# for production)
 CACHES = {
     "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6380/1",  # updated port
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
     }
 }
+
+# For production, use Redis, to be uncommented and configured appropriately for production:
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django_redis.cache.RedisCache",
+#         "LOCATION": "redis://127.0.0.1:6380/1",
+#         "OPTIONS": {
+#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+#         },
+#     }
+# }
 
 # Logging configuration
 LOGGING = {
@@ -204,3 +268,23 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": "INFO"},
 }
 
+# Django Trench (2FA) configuration
+TRENCH_AUTH = {
+    "FROM_EMAIL": EMAIL_HOST_USER,
+    "USER_ACTIVE_FIELD": "is_active",
+    "BACKUP_CODES_QUANTITY": 5,
+    "BACKUP_CODES_LENGTH": 10,
+    "BACKUP_CODES_CHARACTERS": "0123456789",
+    "DEFAULT_VALIDITY_PERIOD": 30,
+    "CONFIRM_BACKUP_CODES_REGENERATION_WITH_CODE": True,
+    "ALLOW_BACKUP_CODES_REGENERATION": True,
+    "APPLICATION_ISSUER_NAME": "Centryx",
+    "MFA_METHODS": {
+        "app": {
+            "VERBOSE_NAME": "app",
+            "VALIDITY_PERIOD": 60 * 10,
+            "USES_THIRD_PARTY_CLIENT": True,
+            "HANDLER": "trench.backends.application.ApplicationMessageDispatcher",
+        },
+    },
+}

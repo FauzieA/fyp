@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from cctv.models import Brand, Camera
 from cctv.serializers import BrandSerializer, CameraCreateSerializer
+import re
 
 dahua = get_dahua_client()
 hikvision = get_hikvision_client()
@@ -50,7 +51,7 @@ class AddCCTVView(APIView):
                         )
 
                 # ----------------------------
-                #  Hikvision / Ezviz device
+                #  Hikvision
                 # ----------------------------
                 case "hikvision":
                     try:
@@ -86,7 +87,21 @@ class AddCCTVView(APIView):
 
             # Save to database if API succeeded
             serializer = CameraCreateSerializer(data=data)
-            serializer.is_valid(raise_exception=True)
+            try:
+                error_text = serializer.is_valid(raise_exception=True)
+            except Exception as e:
+                try:
+                    error_text = str(e)
+                    match = re.search(r"string='([^']+)'", error_text)
+                    message = match.group(1) if match else error_text
+                except Exception:
+                    message = "An unexpected error occurred."
+
+                return Response(
+                    {"error": message},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             serializer.save()
 
             return Response(
@@ -143,7 +158,9 @@ class DeleteCCTVView(APIView):
             camera.delete()
 
             return Response(
-                {"message": "CCTV device deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+                {"message": "CCTV device deleted successfully."},
+                status=status.HTTP_200_OK
+            )
 
         except Exception as e:
             return Response({"error": str(e)},
@@ -195,7 +212,8 @@ class GetStreamUrlView(APIView):
                     # Handle API failure
                     if response.get("code") != "200":
                         return Response(
-                            {"error": response.get("msg", "Failed to get stream URL")},
+                            {"error": response.get(
+                                "msg", "Failed to get stream URL")},
                             status=status.HTTP_400_BAD_REQUEST
                         )
 
@@ -220,7 +238,8 @@ class GetStreamUrlView(APIView):
                                                     )
                     if response.get("errorCode") != "0":
                         return Response(
-                            {"error": response.get("errorMsg", "Failed to get stream URL")},
+                            {"error": response.get(
+                                "errorMsg", "Failed to get stream URL")},
                             status=status.HTTP_400_BAD_REQUEST
                         )
                     return Response({
@@ -312,7 +331,3 @@ class BrandModelListView(APIView):
         except Exception as e:
             return Response({"error": str(e)},
                             status=status.HTTP_400_BAD_REQUEST)
-
-
-
-

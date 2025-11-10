@@ -217,6 +217,10 @@ class DahuaAPI:
                     return {
                         "code": "200",
                         "message": "Device added and motion detection enabled successfully."}
+            else:
+                return {
+                    "code": "200",
+                    "message": "Device added successfully. Motion detection was already enabled."}
         else:
             self.delete_device(device_id)
             return {
@@ -354,12 +358,3 @@ class DahuaAPI:
                 "message": "Failed to retrieve device status.",
                 "response": response
             }
-            
-
-
-if __name__ == "__main__":
-    dahua_api = DahuaAPI()
-    # Example usage:
-    # response = dahua_api.add_device
-    print(dahua_api.add_device("YOUR_DEVICE_ID", "YOUR_DEVICE_PASSWORD"))
-

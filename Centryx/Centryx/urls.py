@@ -15,10 +15,19 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from dj_rest_auth.jwt_auth import get_refresh_view
+from dj_rest_auth.views import (LogoutView, PasswordChangeView,
+                                PasswordResetConfirmView, PasswordResetView,
+                                UserDetailsView)
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from drf_spectacular.views import (SpectacularAPIView, SpectacularRedocView,
                                    SpectacularSwaggerView)
+from integration.auth_views import MFALoginView
+from rest_framework_simplejwt.views import TokenVerifyView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -30,13 +39,49 @@ urlpatterns = [
     path("api/docs/redoc/",
          SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
 
-    # Auth endpoints
-    path("auth/", include("djoser.urls")),
-    path("auth/", include("djoser.urls.jwt")),
-    path("auth/", include("trench.urls")),
-    path("auth/", include("trench.urls.jwt")),
+    # Custom MFA-protected login endpoint (MUST come before other auth
+    # endpoints)
+    path("auth/login/", MFALoginView.as_view(), name="rest_login"),
 
-    # CCTV endpoints
+    # JWT token endpoints (refresh and verify)
+    path(
+        "auth/token/refresh/",
+        get_refresh_view().as_view(),
+        name="token_refresh"),
+    path("auth/token/verify/", TokenVerifyView.as_view(), name="token_verify"),
+
+    # Other dj-rest-auth endpoints (logout, user details, password change/reset)
+    # NOTE: Login is explicitly excluded to prevent bypassing MFA
+    path("auth/logout/", LogoutView.as_view(), name="rest_logout"),
+    path("auth/user/", UserDetailsView.as_view(), name="rest_user_details"),
+    path("auth/password/change/",
+         PasswordChangeView.as_view(),
+         name="rest_password_change"),
+    path(
+        "auth/password/reset/",
+        PasswordResetView.as_view(),
+        name="rest_password_reset"),
+    path("auth/password/reset/confirm/",
+         PasswordResetConfirmView.as_view(),
+         name="rest_password_reset_confirm"),
+
+    # Registration endpoints
+    path("auth/registration/", include("dj_rest_auth.registration.urls")),
+
+    # MFA/2FA endpoints (django-trench)
+    path('auth/mfa/', include('trench.urls')),
+
+    # Password reset confirm URL (required by dj-rest-auth for email
+    # generation)
+    path("password-reset-confirm/<uidb64>/<token>/",
+         auth_views.PasswordResetConfirmView.as_view(),
+         name="password_reset_confirm"),
+
+    # App endpoints
     path("cctv/", include("cctv.urls")),
     path("integration/", include("integration.urls")),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)

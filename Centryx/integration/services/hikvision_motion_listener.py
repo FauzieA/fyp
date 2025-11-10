@@ -1,7 +1,8 @@
-import os
-import time
 import logging
+import os
 import threading
+import time
+
 from integration.services.cctv_services import get_hikvision_client
 
 logger = logging.getLogger(__name__)
