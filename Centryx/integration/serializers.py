@@ -89,12 +89,21 @@ class CustomRegisterSerializer(RegisterSerializer):
     """Custom registration serializer that handles profile fields during signup.
 
     Accepts phone_number and profile_image during user registration.
+    Enforces email uniqueness.
     """
 
     first_name = serializers.CharField(required=False, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_blank=True)
     phone_number = serializers.CharField(required=False, allow_blank=True)
     profile_image = serializers.ImageField(required=False, allow_null=True)
+
+    def validate_email(self, email):
+        """Ensure email is unique."""
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError(
+                "A user is already registered with this e-mail address."
+            )
+        return email
 
     def get_cleaned_data(self):
         """Include custom fields in cleaned data."""

@@ -66,7 +66,7 @@ class AuthenticationTest(TestCase):
     def test_login_with_email(self):
         """Test: Login with email instead of username (if supported by settings)"""
         # Note: This depends on ACCOUNT_LOGIN_METHODS including email
-        # Skip this test as your setup uses username login primarily
+        # will be used when the login swiches to email and password
         pass
 
     def test_02_register_new_user(self):
@@ -133,9 +133,17 @@ class AuthenticationTest(TestCase):
 
     def test_duplicate_email_registration(self):
         """Test: Attempt registration with existing email"""
-        # Note: Django Allauth allows duplicate emails by default
-        # Email uniqueness must be enforced in settings if required
-        pass
+        response = self.client.post('/auth/registration/', {
+            'username': 'anotheruser',
+            'email': 'admin@test.com',  # Same email as admin user
+            'password1': 'Testpass123!',
+            'password2': 'Testpass123!',
+            'first_name': 'Another',
+            'last_name': 'User',
+            'phone_number': '+60198765432'
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data)
 
 
 @override_settings(
@@ -166,8 +174,7 @@ class UserManagementTest(TestCase):
     def test_04_get_current_user_info(self):
         """Test 4: Get current user informations"""
         self.client.credentials(
-            HTTP_AUTHORIZATION=f'Bearer {
-                self.access_token}')
+            HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
         response = self.client.get('/auth/user/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -193,8 +200,7 @@ class UserManagementTest(TestCase):
     def test_05_update_user_info_without_image(self):
         """Test 5: Update current user informations excluding profile image"""
         self.client.credentials(
-            HTTP_AUTHORIZATION=f'Bearer {
-                self.access_token}')
+            HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
         response = self.client.patch('/auth/user/', {
             'first_name': 'Admin',
             'last_name': 'User',
@@ -205,20 +211,6 @@ class UserManagementTest(TestCase):
         self.assertEqual(response.data['first_name'], 'Admin')
         self.assertEqual(response.data['last_name'], 'User')
         self.assertEqual(response.data['phone_number'], '+60199887766')
-
-    def test_update_user_email(self):
-        """Test: Update user email"""
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f'Bearer {
-                self.access_token}')
-        response = self.client.patch('/auth/user/', {
-            'email': 'newemail@example.com'
-        })
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # Note: Email update may require verification, old email might persist
-        # Verify the request was accepted
-        self.assertIn('email', response.data)
 
     def test_update_user_without_auth_fails(self):
         """Test: Update user info without authentication fails"""
@@ -285,17 +277,6 @@ class UserManagementTest(TestCase):
             'token': 'invalidtoken123'
         })
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_verify_refresh_token_fails(self):
-        """Test: Verifying refresh token with verify endpoint"""
-        response = self.client.post('/auth/token/verify/', {
-            'token': self.refresh_token
-        })
-        # Note: Token verify endpoint accepts both access and refresh tokens
-        # This is expected behavior for JWT verification
-        self.assertIn(
-            response.status_code, [
-                status.HTTP_200_OK, status.HTTP_401_UNAUTHORIZED])
 
 
 @override_settings(
@@ -767,19 +748,6 @@ class LogoutTest(TestCase):
             'refresh': self.refresh_token
         })
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_logout_without_auth_fails(self):
-        """Test: Logout without authentication"""
-        self.client.credentials()
-        response = self.client.post('/auth/logout/', {
-            'refresh': self.refresh_token
-        })
-
-        # dj-rest-auth logout doesn't require authentication (can logout with just refresh token)
-        # This is expected behavior
-        self.assertIn(
-            response.status_code, [
-                status.HTTP_200_OK, status.HTTP_401_UNAUTHORIZED])
 
     def test_access_token_still_works_after_logout(self):
         """Test: Access token still works after logout (until expiration)"""

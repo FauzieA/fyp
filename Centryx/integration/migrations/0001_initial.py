@@ -17,16 +17,27 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Profile',
             fields=[
-                ('id', models.BigAutoField(auto_created=True,
-                 primary_key=True, serialize=False, verbose_name='ID')),
-                ('phone_number', models.CharField(
-                    blank=True, max_length=20, null=True)),
-                ('profile_image', models.ImageField(
-                    blank=True, null=True, upload_to='profiles/')),
+                ('id',
+                 models.BigAutoField(
+                     auto_created=True,
+                     primary_key=True,
+                     serialize=False,
+                     verbose_name='ID')),
+                ('phone_number',
+                 models.CharField(
+                     blank=True,
+                     max_length=20,
+                     null=True)),
+                ('profile_image',
+                 models.ImageField(
+                     blank=True,
+                     null=True,
+                     upload_to='profiles/')),
                 ('user',
-                 models.OneToOneField(on_delete=django.db.models.deletion.CASCADE,
-                                      related_name='profile',
-                                      to=settings.AUTH_USER_MODEL)),
+                 models.OneToOneField(
+                     on_delete=django.db.models.deletion.CASCADE,
+                     related_name='profile',
+                     to=settings.AUTH_USER_MODEL)),
             ],
         ),
     ]
