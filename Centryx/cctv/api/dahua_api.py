@@ -80,8 +80,7 @@ class DahuaAPI:
         return sign_result
 
     def _get_app_access_token(self):
-        """Get product app access token
-        API Reference: https://open.dolynkcloud.com/platform/develop/doccenter/doc?d=1715309164030x1724914605005
+        """Get product app access token from DoLynk API.
         """
         timestamp = str(int(time.time() * 1000))
         nonce = str(uuid.uuid4())
@@ -109,6 +108,7 @@ class DahuaAPI:
             raise Exception(f"Failed to get AppAccessToken: {resp}")
 
     # Ensure token validity before request
+
     def _ensure_token(self):
         if not self.app_access_token or time.time() >= self.token_expiry:
             # Refreshing AppAccessToken...
@@ -163,10 +163,6 @@ class DahuaAPI:
 
         Returns:
         - dict: API response from DoLynk
-        API References:
-            ** add device : https://open.dolynkcloud.com/platform/develop/doccenter/doc?d=1715309164030x1724914923611
-            ** check motion : https://open.dolynkcloud.com/platform/develop/doccenter/doc?d=1715309164030x1724914808503
-            ** Enable motion : https://open.dolynkcloud.com/platform/develop/doccenter/doc?d=1715309164030x1724915269635
         """
 
         if not device_id:
@@ -186,7 +182,21 @@ class DahuaAPI:
         response = self._post("api-iot/device/addDevice", payload)
 
         if response.get("code") != "200":
-            return response
+            return {
+                "code": response.get("code"),
+                "message": response.get("msg")}
+
+        # Check the device smart abilities and disable SMD if present
+        device_abilities = self.disable_smd_abilities(device_id)
+
+        # Create device hls url
+        hls_response = self.create_live_hls_url(device_id)
+        if str(hls_response.get("code")) not in ["200", "IDV0055"]:
+            self.delete_device(device_id)
+            return {
+                "code": "400",
+                "message": "Failed to create live HLS URL for the device. Device may be offline.",
+            }
 
         # Check if motion detection is supported
         check_payload = {
@@ -236,8 +246,6 @@ class DahuaAPI:
         - ValueError: If device_id is not set.
 
         Returns:
-        - dict: API response
-        API Reference: https://open.dolynkcloud.com/platform/develop/doccenter/doc?d=1715309164030x1724914667805
         """
         # Ensure that device_id has been set before calling this method
         if not device_id:
@@ -249,83 +257,42 @@ class DahuaAPI:
 
         return self._post("api-iot/device/deleteDevice", payload)
 
-    def get_camera_models(self, categories=None):
+    def get_camera_models(self):
         """
-        Fetch device models for specified camera categories from DoLynk.
+        Fetch device categories for 'IPC' (Network Cameras) and 'SD' (PTZ Cameras).
 
-        Returns only the list of device models, ignoring category names.
+        Returns:
+        - dict: {
+            "Network Cameras": [...device models...],
+            "PTZ Cameras": [...device models...]
+        }
         """
-        if categories is None:
-            categories = {"IPC": "NetworkCameras", "SD": "PTZCameras"}
+        category_map = {
+            "Network Cameras": "IPC",
+            "PTZ Cameras": "SD"
+        }
 
-        all_models = []
-        for code in categories.keys():
+        formatted_result = {}
+
+        for label, code in category_map.items():
             payload = {"secondCategoryCode": code}
             response = self._post("api-iot/device/getCategory", payload)
 
-            if response.get("success") and response.get(
-                    "data") and response["data"].get("categoryList"):
-                models = response["data"]["categoryList"][0].get(
-                    "deviceModel", [])
-                all_models.extend(models)
-
-        return all_models
-
-    def get_stream_url(
-            self,
-            device_id,
-            channel_id=0,
-            business_type="real",
-            encrypt_mode=0,
-            stream_type=0,
-            proto_type="rtsp",
-            begin_time=None,
-            end_time=None):
-        """
-        Get the temporary streaming URL for live view or playback (local/cloud recording).
-
-        businessType options:
-        - "real"         → Live stream
-        - "localRecord"  → Local SD card recording playback
-        - "cloudRecord"  → Cloud recording playback
-
-        API Reference:
-        https://open.dolynkcloud.com/platform/develop/doccenter/doc?d=1715309164030x1724932054107
-        """
-        if not device_id:
-            raise ValueError("Device ID is not set.")
-
-        # Base payload for all stream types
-        payload = {
-            "deviceId": device_id,
-            "channelId": str(channel_id),
-            "businessType": business_type,
-            "encryptMode": encrypt_mode,
-            "streamType": stream_type,
-            "protoType": proto_type
-        }
-
-        # If requesting recording playback, include time range
-        if business_type in ["localRecord", "cloudRecord"]:
-            if not (begin_time and end_time):
-                raise ValueError(
-                    "begin_time and end_time are required for recording playback.")
-            payload["beginTime"] = begin_time
-            payload["endTime"] = end_time
-
-        # Send request
-        response = self._post("api-iot/device/createDeviceStreamUrl", payload)
-
-        # Handle response
-        if response.get("code") == "200" and response.get("success"):
-            stream_url = response["data"]["url"]
-            return {"code": "200", "url": stream_url, "type": business_type}
-        else:
-            return {
-                "code": "400",
-                "message": f"Failed to get {business_type} stream URL.",
-                "response": response
-            }
+            if response.get("code") == "200" and response.get("success"):
+                data = response.get("data", {}).get("categoryList", [])
+                if data:
+                    # Some APIs return multiple items, so we flatten any found
+                    # deviceModel lists
+                    device_models = []
+                    for item in data:
+                        models = item.get("deviceModel", [])
+                        device_models.extend(models)
+                    formatted_result[code] = device_models
+                else:
+                    formatted_result[code] = []
+            else:
+                formatted_result[code] = []
+        return formatted_result
 
     def get_device_status(self, device_id: str):
         """
@@ -355,6 +322,205 @@ class DahuaAPI:
         else:
             return {
                 "code": response.get("code", "400"),
-                "message": "Failed to retrieve device status.",
+                "message": "Failed to retrieve device status."
+            }
+
+    def disable_smd_abilities(self, device_id: str):
+        """
+        Disable SMD abilities for a device. Only requires the device_id.
+        Abilities: smdHuman, smdAnimal, smdHumanAndVehicle, smdVehicle
+        """
+        abilities_to_disable = [
+            "smdHuman",
+            "smdAnimal",
+            "smdHumanAndVehicle",
+            "smdVehicle"]
+        channel_id = "0"
+        results = {}
+
+        for ability in abilities_to_disable:
+            # Check if the device supports this ability
+            check_payload = {
+                "deviceId": device_id,
+                "channelId": channel_id,
+                "abilityType": ability
+            }
+            check_response = self._post(
+                "api-iot/device/getAbilityStatus", check_payload)
+
+            if (check_response.get("code") == "200"
+                and check_response.get("success")
+                and check_response.get("data")
+                    and "status" in check_response["data"]):
+
+                if check_response["data"]["status"] != "off":
+                    # Disable the ability
+                    disable_payload = {
+                        "deviceId": device_id,
+                        "channelId": channel_id,
+                        "abilityType": ability,
+                        "status": "off"
+                    }
+                    disable_response = self._post(
+                        "api-iot/device/setAbilityStatus", disable_payload)
+
+                    if disable_response.get(
+                            "code") == "200" and disable_response.get("success"):
+                        results[ability] = "disabled"
+                    else:
+                        results[ability] = f"failed to disable: {disable_response}"
+                else:
+                    results[ability] = "already off"
+            else:
+                results[ability] = "not supported"
+
+        return results
+
+    def create_live_hls_url(self, device_id: str, channel_id=0, stream_type=0):
+        """
+        Get the permanent HLS live stream URL for a Dahua device.
+
+        Parameters:
+        - device_id (str): The device ID
+        - channel_id (int): Channel number (default 0)
+        - stream_type (int): Stream type, 0 = HD main stream, 1 = SD sub stream
+
+        Returns:
+        - dict: { "code": 200, "hls_url": "<url>" } on success
+        """
+        if not device_id:
+            raise ValueError("device_id is required")
+
+        payload = {
+            "deviceId": device_id,
+            "channelId": str(channel_id),
+            "streamType": stream_type
+        }
+
+        response = self._post("api-iot/device/createDeviceHlsLive", payload)
+
+        if response.get("code") == "200" and response.get("success"):
+            # Grab the first HLS URL from streamList
+            stream_list = response.get("data", {}).get("streamList", [])
+            if stream_list:
+                return {"code": 200, "hls_url": stream_list[0].get("hls")}
+            else:
+                return {"code": 400, "message": "No HLS URL returned"}
+        else:
+            return {
+                "code": response.get("code", 400),
+                "message": "Failed to get live HLS URL",
                 "response": response
             }
+
+    def get_hls_live_list(self, device_id: str, channel_id: str = "0"):
+        """
+        Get the HLS live stream URL list for a given Dahua device and pick the best HD HTTPS URL.
+
+        Parameters:
+        - device_id (str): The device ID
+        - channel_id (str): Channel number (default "0")
+
+        Returns:
+        - dict: {
+            "code": 200,
+            "hls_urls": [list of all HLS URLs],
+            "stream_info": [full streamList info],
+            "best_hls": str or None  # Best HD HTTPS stream for React/browser
+        } on success
+        """
+        if not device_id:
+            raise ValueError("device_id is required")
+
+        payload = {
+            "deviceId": device_id,
+            "channelId": channel_id
+        }
+
+        response = self._post("api-iot/device/getHlsLiveList", payload)
+
+        if response.get("code") == "200" and response.get(
+                "success") and response.get("data"):
+            hls_urls = []
+            stream_info = []
+            best_hls = None
+
+            for item in response["data"]:
+                stream_list = item.get("streamList", [])
+                for stream in stream_list:
+                    hls_url = stream.get("hls")
+                    if hls_url:
+                        hls_urls.append(hls_url)
+                        stream_info.append(stream)
+                        # Pick first HD HTTPS stream as best_hls
+                        if not best_hls and stream.get(
+                                "streamType") == 0 and hls_url.startswith("https://"):
+                            best_hls = hls_url
+
+            return {
+                "code": 200,
+                "url": best_hls
+            }
+        else:
+            return {
+                "code": response.get("code", 400),
+                "message": "Failed to get HLS live list",
+                "response": response
+            }
+
+    def get_hls_playback_list(
+        self,
+        device_id: str,
+        channel_id: str = "0",
+        begin_time: str = None,
+        end_time: str = None
+    ):
+        """
+        Generate an HLS live stream from device recording segments.
+
+        Parameters:
+        - device_id (str): Dahua device ID
+        - channel_id (str): Channel number (default "0")
+        - begin_time (str): Playback begin time, format "yyyy-MM-dd HH:mm:ss"
+        - end_time (str): Playback end time, format "yyyy-MM-dd HH:mm:ss"
+
+        Returns:
+        - dict: {
+            "code": int,
+            "success": bool,
+            "hls_url": str
+            "msg": str
+        } on success
+        """
+        if not all([device_id, begin_time, end_time]):
+            raise ValueError(
+                "device_id, begin_time, and end_time are required")
+
+        payload = {
+            "deviceId": device_id,
+            "channelId": channel_id,
+            "beginTime": begin_time,
+            "endTime": end_time
+        }
+
+        response = self._post("api-iot/device/createDeviceRecordHls", payload)
+
+        if response.get("code") == "200" and response.get(
+                "success") and response.get("data"):
+            return {
+                "code": 200,
+                "success": True,
+                "url": response["data"].get("url"),
+                "msg": response.get("msg", "")
+            }
+        else:
+            return {
+                "code": response.get(
+                    "code",
+                    400),
+                "success": False,
+                "hls_url": None,
+                "message": response.get(
+                    "msg",
+                    "Failed to generate HLS from recording"),
+                "response": response}

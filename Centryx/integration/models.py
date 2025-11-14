@@ -73,7 +73,9 @@ def auto_delete_old_profile_image(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=Profile)
 def auto_delete_profile_image_on_delete(sender, instance, **kwargs):
-    """Delete profile image file from storage when Profile object is deleted."""
+    """Delete profile image file from storage when Profile object
+        is deleted.
+    """
     file = instance.profile_image
     if file:
         try:

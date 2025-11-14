@@ -21,8 +21,7 @@ warnings.filterwarnings(
     "ignore",
     message=r"app_settings\.(USERNAME_REQUIRED|EMAIL_REQUIRED|AUTHENTICATION_METHOD) is deprecated",
     category=UserWarning,
-    module=r"dj_rest_auth.*"
-)
+    module=r"dj_rest_auth.*")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

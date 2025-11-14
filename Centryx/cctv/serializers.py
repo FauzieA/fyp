@@ -1,6 +1,12 @@
+from integration.services.cctv_services import (get_dahua_client,
+                                                get_hikvision_client)
 from rest_framework import serializers
 
 from cctv.models import Brand, Camera, CCTVModel
+
+dahua = get_dahua_client()
+hikvision = get_hikvision_client()
+brands = {'dahua': dahua, 'hikvision': hikvision}
 
 
 class BrandSerializer(serializers.ModelSerializer):
@@ -37,7 +43,13 @@ class CameraCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Camera
-        fields = ['id', 'identifier', 'brand', 'model_name', 'location']
+        fields = [
+            'id',
+            'identifier',
+            'brand',
+            'model_name',
+            'location',
+            'name']
 
     def create(self, validated_data):
         brand_name = validated_data.pop('brand')
@@ -64,3 +76,51 @@ class BrandListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Brand
         fields = ['name']
+
+
+class CameraDetailsSerializer(serializers.ModelSerializer):
+    """Serializer that returns camera name, brand, model, and location"""
+    brand = serializers.CharField(source='model.brand.name', read_only=True)
+    model_name = serializers.CharField(source='model.name', read_only=True)
+
+    class Meta:
+        model = Camera
+        fields = ['identifier', 'name', 'brand', 'model_name', 'location']
+
+
+class CameraWithLiveUrlSerializer(serializers.ModelSerializer):
+    """Serializer that returns camera details with live streaming URL"""
+    brand = serializers.CharField(source='model.brand.name', read_only=True)
+    live_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Camera
+        fields = ['identifier', 'name', 'location', 'brand', 'live_url']
+
+    def get_live_url(self, obj):
+        """Fetch live stream URL from the appropriate API based on brand"""
+        brand_name = obj.model.brand.name.lower()
+        identifier = obj.identifier
+
+        try:
+            if brand_name == 'dahua':
+                response = brands['dahua'].get_hls_live_list(
+                    device_id=identifier)
+                if str(response.get("code")) == "200":
+                    return response.get("url")
+                return None
+            elif brand_name == 'hikvision':
+                response = brands['hikvision'].get_stream(
+                    device_id=identifier,
+                    type_="1")
+                if response.get("errorCode") == "0":
+                    return response.get("url")
+                return None
+            # Continue with other brands as needed
+
+            else:
+                return None
+
+        except Exception as e:
+            # Return None if there's an error fetching the URL
+            return None

@@ -19,7 +19,10 @@ class Command(BaseCommand):
         site.domain = 'localhost:8000'
         site.name = 'Centryx Local'
         site.save()
-        self.stdout.write(self.style.SUCCESS(f"Site configured: {site.domain}"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Site configured: {
+                    site.domain}"))
 
         # -------------------------
         # 1) Users data
@@ -47,7 +50,8 @@ class Command(BaseCommand):
             user.set_password(admin_password)
             user.save()
             self.stdout.write(
-                self.style.SUCCESS(f"Super admin '{admin_username}' created successfully."))
+                self.style.SUCCESS(
+                    f"Super admin '{admin_username}' created successfully."))
         else:
             # Ensure existing user has admin permissions
             if not user.is_superuser or not user.is_staff:
@@ -56,10 +60,12 @@ class Command(BaseCommand):
                 user.is_active = True
                 user.save()
                 self.stdout.write(
-                    self.style.SUCCESS(f"Updated '{admin_username}' to superuser."))
+                    self.style.SUCCESS(
+                        f"Updated '{admin_username}' to superuser."))
             else:
                 self.stdout.write(
-                    self.style.WARNING(f"Super admin '{admin_username}' already exists."))
+                    self.style.WARNING(
+                        f"Super admin '{admin_username}' already exists."))
 
         # Create or update profile safely
         profile, _ = Profile.objects.get_or_create(user=user)
@@ -85,6 +91,10 @@ class Command(BaseCommand):
         for brand_name in brands:
             brand, created = Brand.objects.get_or_create(name=brand_name)
             if created:
-                self.stdout.write(self.style.SUCCESS(f"Brand '{brand_name}' added."))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Brand '{brand_name}' added."))
             else:
-                self.stdout.write(self.style.WARNING(f"Brand '{brand_name}' already exists."))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Brand '{brand_name}' already exists."))

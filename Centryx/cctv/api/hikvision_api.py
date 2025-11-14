@@ -175,23 +175,26 @@ class HikvisionAPI:
             .get("deviceList", [{}])[0]
             .get("deviceId")
         )
-
-        if not device_id:
-            # device add failed (invalid info)
-            return add_device_response
+        if not device_id or add_device_response.get("errorCode") != "0":
+            # device add failed (invalid info)m
+            return {
+                "errorCode": "4000",
+                "message": "Failed to add device. Check serial number, verify code, and ensure the device is online."}
 
         # Check motion detection support
         supports_motion = self.check_motion_detection_support(device_id)
 
         if supports_motion:
-            return add_device_response
+            return {
+                "errorCode": "0",
+                "deviceID": device_id,
+                "message": "Device added successfully with motion detection support."}
         else:
             # delete device if motion not supported
             self.delete_device(device_id)
             return {
                 "errorCode": "4001",
-                "errorMessage": "Device does not support motion detection."
-            }
+                "message": "Failed to add device: motion detection not supported."}
 
     def delete_device(self, device_id: str):
         """
@@ -215,63 +218,13 @@ class HikvisionAPI:
 
         return self._post("hccgw/resource/v1/devices/delete", body)
 
-    def get_live_stream(
-        self,
-        resource_id: str,
-        device_serial: str,
-        type_: str = "1",          # 1 = live, 2/3 = playback
-        protocol: int = 3,         # 1=EZOPEN, 2=HLS, 3=RTMP
-        quality: int = 2,          # 1=HD, 2=Fluent
-        expire_time: int = 600,    # validity in seconds
-        code: str = "",
-        start_time: str = "",
-        stop_time: str = ""
-    ):
-        """
-        Get live or playback stream URL.
-
-        Args:
-            resource_id (str): Camera resource ID from /areas/cameras/get
-            device_serial (str): Camera serial number
-            type_ (str): 1=live, 2=local playback, 3=cloud playback
-            protocol (int): 1=EZOPEN, 2=HLS, 3=RTMP
-            quality (int): 1=HD, 2=Fluent
-            expire_time (int): Expiration time in seconds (30s–720d)
-            code (str): Optional recording encryption password
-            start_time (str): Playback start time (for type 2 or 3)
-            stop_time (str): Playback stop time (for type 2 or 3)
-
-        Returns:
-            dict: Stream info with URL and expiry time.
-        """
-
-        if not resource_id or not device_serial:
-            raise ValueError("resource_id and device_serial are required")
-
-        body = {
-            "resourceId": resource_id,
-            "deviceSerial": device_serial,
-            "type": type_,
-            "protocol": protocol,
-            "quality": quality,
-            "expireTime": expire_time,
-        }
-
-        if code:
-            body["code"] = code
-        if start_time and stop_time:
-            body["startTime"] = start_time
-            body["stopTime"] = stop_time
-
-        return self._post("hccgw/video/v1/live/address/get", body)
-
     def get_stream(
         self,
         device_id: str,
         type_: str = "1",  # 1 = live, 2 = local playback, 3 = cloud playback
         start_time: str = "",
         stop_time: str = "",
-        protocol: int = 3,         # 1=EZOPEN, 2=HLS, 3=RTMP
+        protocol: int = 2,         # 1=EZOPEN, 2=HLS, 3=RTMP
         quality: int = 2,          # 1=HD, 2=Fluent
         expire_time: int = 600,    # validity in seconds
         code: str = ""
@@ -285,25 +238,23 @@ class HikvisionAPI:
             raise ValueError("device_id is required")
 
         # Get resourceId and deviceSerial from device_id
-        device_info = self._post("hccgw/resource/v1/devices/get", {
+        device_info = self._post("hccgw/resource/v1/areas/cameras/get", {
             "pageIndex": 1,
             "pageSize": 1,
-            "deviceID": [device_id]
+            "filter": {
+                "deviceID": f"{device_id}"
+            }
         })
         if device_info.get("errorCode") != "0":
             return {
                 "errorCode": "4002",
-                "errorMessage": """Failed to retrieve device
-                info — device not found or invalid device_id.""",
+                "message": "Failed to retrieve device info — device not found or invalid device_id.",
                 "details": device_info}
 
         try:
-            device_data = device_info["data"]["deviceList"][0]
-            device_serial = device_data.get("deviceSerial")
-            resource_id = (
-                device_data.get("resourceId")
-                or (device_data.get("cameraList", [{}])[0].get("resourceId"))
-            )
+            camera_data = device_info["data"]["camera"][0]
+            device_serial = camera_data["device"]["devInfo"].get("serialNo")
+            resource_id = camera_data.get("id")
         except Exception as e:
             raise Exception(
                 f"Failed to parse device info: {e}, response: {device_info}")
@@ -324,32 +275,63 @@ class HikvisionAPI:
 
         if code:
             body["code"] = code
-        if type_ in ("2", "3"):  # playback
+        if type_ == "2":  # local or cloud playback
             if not start_time or not stop_time:
                 raise ValueError(
-                    """start_time and stop_time are
-                    required for playback streams""")
-            body["startTime"] = start_time
-            body["stopTime"] = stop_time
+                    "start_time and stop_time are required for playback streams")
 
-        # Get stream URL
-        return self._post("hccgw/video/v1/live/address/get", body)
+            for stream_type in ["2", "3"]:  # 2 = local, 3 = cloud
+                body["type"] = stream_type
+                body["startTime"] = start_time
+                body["stopTime"] = stop_time
+
+                response = self._post("hccgw/video/v1/live/address/get", body)
+
+                if response.get("errorCode") == "0" and response.get(
+                        "data", {}).get("url"):
+                    return {
+                        "stream_url": response["data"]["url"],
+                        "errorCode": 0}
+
+            # If neither works
+            return {
+                "stream_url": None,
+                "errorCode": 4002,
+                "message": "Failed to get playback stream URL (local and cloud)",
+            }
+
+        else:
+            # Get live stream
+            body['type'] = "1"
+            response = self._post("hccgw/video/v1/live/address/get", body)
+
+            if response.get(
+                    "errorCode") != "0" or "data" not in response or "url" not in response["data"]:
+                return {
+                    "stream_url": None,
+                    "errorCode": 4001,
+                    "message": "Failed to retrieve live stream URL"
+                }
+
+            stream_url = response["data"]["url"]
+            return {"stream_url": stream_url, "errorCode": 0}
 
     def list_devices_with_status(
             self,
             page_index: int = 1,
+            name: str = "",
             page_size: int = 50):
         """List all devices with their online/offline status."""
         body = {
             "pageIndex": page_index,
-            "pageSize": page_size
+            "pageSize": page_size,
+            "filter": {"matchKey": name}
         }
         data = self._post("hccgw/resource/v1/devices/get", body)
 
         devices = data.get("data", {}).get("deviceList", [])
         return [
             {
-                "deviceID": d.get("deviceID"),
                 "deviceName": d.get("name"),
                 "status": "Online" if d.get("online") == "1" else "Offline"
             }
@@ -369,35 +351,11 @@ class HikvisionAPI:
         if not device_id:
             raise ValueError("device_id is required")
 
-        # Get cameraID from device_id
-        device_info = self._post("hccgw/resource/v1/devices/get", {
-            "pageIndex": 1,
-            "pageSize": 1,
-            "deviceID": [device_id]
-        })
-
-        # Validate device response
-        if device_info.get("errorCode") != "0":
-            return False
-
-        try:
-            device_data = device_info["data"]["deviceList"][0]
-            camera_list = device_data.get("cameraList", [])
-            if not camera_list:
-                return False
-            camera_id = camera_list[0].get(
-                "cameraID") or camera_list[0].get("resourceId")
-        except Exception:
-            return False
-
-        if not camera_id:
-            return False
-
         # Check motion detection support for that camera
         body = {
             "pageIndex": 1,
             "pageSize": 1,
-            "filter": {"cameraID": [camera_id]}
+            "filter": {"deviceID": device_id}
         }
 
         data = self._post("hccgw/resource/v1/areas/cameras/get", body)
@@ -418,19 +376,23 @@ class HikvisionAPI:
         }
         return self._post("hccgw/alarm/v1/mq/subscribe", body)
 
-    def get_motion_events(self, max_per_time: int = 10):
+    def get_motion_events(self, max_per_time: int = 100):
         """Retrieve pending motion detection alarms."""
         body = {"maxNumberPerTime": max_per_time}
         return self._post("hccgw/alarm/v1/mq/messages", body)
 
-    def acknowledge_motion_events(self, msg_ids: list):
+    def acknowledge_motion_events(self, batch_id: str):
         """Acknowledge that messages were received so they won’t repeat."""
-        if not msg_ids:
-            return {"error": "No message IDs provided."}
-        body = {"msgIDList": msg_ids}
+        if not batch_id:
+            return {"error": "No batch ID provided."}
+        body = {"batchId": batch_id}
         return self._post("hccgw/alarm/v1/mq/messages/complete", body)
 
     def unsubscribe_motion_detection(self):
         """Unsubscribe from all alarm message queues (including motion)."""
-        body = {"subscribeType": 1}
-        return self._post("hccgw/alarm/v1/mq/unsubscribe", body)
+        body = {
+            "subscribeType": 0,
+            "subscribeMode": 1,
+            "eventType": [10002]  # 10002 = Motion Detection
+        }
+        return self._post("hccgw/alarm/v1/mq/subscribe", body)

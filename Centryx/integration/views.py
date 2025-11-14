@@ -1,4 +1,5 @@
 import json
+import threading
 
 from django.contrib.auth import get_user_model
 from rest_framework import status
@@ -10,9 +11,6 @@ from integration.serializers import CustomUserSerializer
 
 User = get_user_model()
 
-# Store motion states in memory (device_id → timer/thread)
-active_motions = {}
-
 
 class GetDahuaMotionStatusView(APIView):
     permission_classes = [AllowAny]
@@ -20,34 +18,33 @@ class GetDahuaMotionStatusView(APIView):
     def post(self, request, *args, **kwargs):
         try:
             data = request.data
-
+            print(data)
             # Handle both event formats
-            event_type = data.get("eventType") or data.get("msgType")
+            event_type = data.get("msgType")
             device_id = data.get("deviceId")
             action = data.get("action")
 
             # Motion or Smart Motion Detection
-            if event_type in ["motionDetect",
-                              "videoMotion", "smdHuman", "smdVehicle"]:
-                print(f"🎥 Motion detected from {device_id}")
-
+            if event_type == "videoMotion":
                 if action == "start":
                     # Get all lights associated with this device and turn on
-                    print("🔔 Motion started")
+                    pass
+
                 elif action == "stop":
                     # Get all lights associated with this device and turn off
-                    print("✅ Motion stopped")
-                else:
-                    print(f"⚡ Motion event: {action}")
-
+                    pass
                 return Response({"message": "Event received"},
+                                status=status.HTTP_200_OK)
+
+            elif event_type == "offline":
+                # Send Notfication to admin that device is offline
+                return Response({"message": "Offline event received"},
                                 status=status.HTTP_200_OK)
 
             return Response({"message": f"Unknown event type: {event_type}"},
                             status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            print("❌ Error:", str(e))
             return Response({"error": str(e)},
                             status=status.HTTP_400_BAD_REQUEST)
 

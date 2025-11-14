@@ -29,6 +29,7 @@ class CCTVModel(models.Model):
 class Camera(models.Model):
     """Model for CCTV"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    name = models.CharField(max_length=100, null=False)
     identifier = models.CharField(max_length=100, unique=True)
     model = models.ForeignKey(
         CCTVModel,
