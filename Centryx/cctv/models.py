@@ -8,6 +8,7 @@ class Brand(models.Model):
     """Model for CCTV Brand"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True, editable=False)
+    created = models.DateTimeField(default=timezone.now, editable=False)
 
     def __str__(self):
         return self.name
@@ -21,6 +22,7 @@ class CCTVModel(models.Model):
         Brand,
         on_delete=models.CASCADE,
         related_name='models')
+    created = models.DateTimeField(default=timezone.now, editable=False)
 
     def __str__(self):
         return self.name
@@ -36,7 +38,7 @@ class Camera(models.Model):
         on_delete=models.CASCADE,
         related_name='cctvs')
     location = models.CharField(max_length=255)
-    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    created = models.DateTimeField(default=timezone.now, editable=False)
 
     class Meta:
         constraints = [
@@ -48,3 +50,13 @@ class Camera(models.Model):
 
     def __str__(self):
         return f"{self.identifier} - {self.model.name}"
+
+
+class Automation(models.Model):
+    """Model for CCTV Brand"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    active = models.BooleanField(default=True)
+    created = models.DateTimeField(default=timezone.now, editable=False)
+
+    def __str__(self):
+        return str(self.active)

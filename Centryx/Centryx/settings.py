@@ -171,8 +171,13 @@ REST_FRAMEWORK = {
     ),
     "EXCEPTION_HANDLER": "Centryx.utils.exception_handler.custom_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+
+    # Cursor pagination
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.CursorPagination",
+    "PAGE_SIZE": 15,
 }
 
+# Simple JWT settings
 SIMPLE_JWT = {
     # short lived access token, longer lived refresh token
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=440),
@@ -239,23 +244,26 @@ ACCOUNT_PRESERVE_USERNAME_CASING = True
 
 # Cache configuration (using in-memory cache for development to be deleted
 # for production)
+#CACHES = {
+#    "default": {
+#        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+#        "LOCATION": "unique-snowflake",
+#    }
+#}
+
+# For production, use Redis, to be uncommented and configured appropriately for production:
+
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "unique-snowflake",
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
 }
 
-# For production, use Redis, to be uncommented and configured appropriately for production:
-# CACHES = {
-#     "default": {
-#         "BACKEND": "django_redis.cache.RedisCache",
-#         "LOCATION": "redis://127.0.0.1:6380/1",
-#         "OPTIONS": {
-#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-#         },
-#     }
-# }
+
 
 # Logging configuration
 LOGGING = {

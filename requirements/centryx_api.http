@@ -6,8 +6,8 @@
 @HOST = http://127.0.0.1:8000
 @ADMIN_USERNAME = centryxadmin
 @ADMIN_PASSWORD = centryxpassword
-@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NTcxMTY4NCwiaWF0IjoxNzYzMTE5Njg0LCJqdGkiOiJiODc5MDAyMTJhZWQ0ZDUyOTJjZWFhOTQ5N2RkZjI3MiIsInVzZXJfaWQiOiIxIn0.VKQTuo63WvklOQp6A2TIisePc7ZnRaPOXJ5MctwbPtQ
-@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzMTQ2MDg0LCJpYXQiOjE3NjMxMTk2ODQsImp0aSI6ImQ0MmNmMWMwZjc3MzRhYmM5MzM1NmQ0YjdhNGE1YTFhIiwidXNlcl9pZCI6IjEifQ.bYzc17tBZMbKSkIgPYuYOdv3nkvB397-8KzwkIlJLW0
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NTgxODUzOCwiaWF0IjoxNzYzMjI2NTM4LCJqdGkiOiJhZDI2MmQ3MDVlZTA0MzNjOGVhMzVmY2Y2YjcyYjczOSIsInVzZXJfaWQiOiIxIn0.V2EQ-Ip54CnltkYO9l2WU_YpEHuEtmRofEsRkgUxdA0
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzMjUyOTM4LCJpYXQiOjE3NjMyMjY1MzgsImp0aSI6ImU4ZDFiYzY5ZGMzODRjZTM5NzczZWQ4NjNkOGEwYjU3IiwidXNlcl9pZCI6IjEifQ.Cf2pcBNyEakeuSU_nu8pTh6HjA2_e_H01BH-HgM6Drk
 
 
 #####################################################################################################################
@@ -338,9 +338,21 @@ Content-Type: application/json
 }
 
 
-### 6) Get Camera Details (name, brand, model, location)
+### 6) Get Camera Details (name, brand, model, location) using pagination first 10
 ### Expected: 200 OK with list of cameras
 GET {{HOST}}/cctv/cameras/
+Authorization: Bearer {{access_token}}
+
+
+### 6b) Get Camera Details (name, brand, model, location) using pagination next 15
+### Expected: 200 OK with list of cameras
+GET {{HOST}}/cctv/cameras/?cursor=cD0yMDI1LTExLTE1KzA5JTNBNTMlM0E0Mi43NjkzODElMkIwMCUzQTAw
+Authorization: Bearer {{access_token}}
+
+
+### 6b) Get Camera Details (name, brand, model, location) using pagination previous 15
+### Expected: 200 OK with list of cameras
+GET {{HOST}}/cctv/cameras/?cursor=cj0xJnA9MjAyNS0xMS0xNSswOSUzQTUzJTNBNDIuNzY0NTEyJTJCMDAlM0EwMA%3D%3D
 Authorization: Bearer {{access_token}}
 
 
@@ -361,6 +373,21 @@ GET {{HOST}}/cctv/get_device_status/?brand=Hikvision&identifier=HIK123456 HTTP/1
 Authorization: Bearer {{access_token}}
 
 
+### 9) Get automation status
+### Expected: 200 OK with automation status
+GET {{HOST}}/cctv/automation/ HTTP/1.1
+Authorization: Bearer {{access_token}}
+
+
+### 9b) Update automation status (partial)
+### Expected: 200 OK with updated automation status
+PATCH {{HOST}}/cctv/automation/ HTTP/1.1
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+    "active": false
+}
 
                   ########################################################################
                   #             Dahua CCTV Device Management Endpoints                  #

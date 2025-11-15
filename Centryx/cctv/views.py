@@ -2,17 +2,18 @@ import re
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from django.views.decorators.vary import vary_on_headers
 from integration.services.cctv_services import (get_dahua_client,
                                                 get_hikvision_client)
 from rest_framework import generics, status
+from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from cctv.models import Brand, Camera
-from cctv.serializers import (BrandSerializer, CameraCreateSerializer,
-                              CameraDetailsSerializer,
+from cctv.decorators import cache_post
+from cctv.models import Automation, Brand, Camera
+from cctv.serializers import (AutomationSerializer, BrandSerializer,
+                              CameraCreateSerializer, CameraDetailsSerializer,
                               CameraWithLiveUrlSerializer)
 
 dahua = get_dahua_client()
@@ -34,7 +35,7 @@ class AddCCTVView(APIView):
         try:
             match brand:
                 # ----------------------------
-                #  Dahua device
+                #  Dahua
                 # ----------------------------
                 case "dahua":
                     try:
@@ -149,7 +150,7 @@ class DeleteCCTVView(APIView):
                             {"error": "Device could not be deleted."}, status=status.HTTP_400_BAD_REQUEST)
 
                 # ----------------------------
-                #  Dahua
+                #  Hikvision
                 # ----------------------------
                 case 'hikvision':
                     response = hikvision.delete_device(device_id=identifier)
@@ -317,7 +318,7 @@ class GetDeviceStatusView(APIView):
                     data = hikvision.list_devices_with_status(name=name)
                     return Response({"identifier": identifier,
                                     "Status": data[0].get("status")})
-        
+
                 # ----------------------------
                 #  Dahua
                 # ----------------------------
@@ -348,6 +349,8 @@ class BrandListView(generics.ListAPIView):
     List all CCTV brands.
     """
     permission_classes = [IsAuthenticated, IsAdminUser]
+    pagination_class = CursorPagination
+    pagination_class.page_size = 20
     queryset = Brand.objects.all()
     serializer_class = BrandSerializer
 
@@ -360,7 +363,6 @@ class BrandModelListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     @method_decorator(cache_page(60 * 60 * 24 * 30, key_prefix="brand_models"))
-    @method_decorator(vary_on_headers("Authorization"))
     def get(self, request, brand_name):
         try:
             models = brands[brand_name.lower()].get_camera_models()
@@ -370,16 +372,25 @@ class BrandModelListView(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
 
+@method_decorator(cache_page(60 * 60 * 24 * 30,
+                  key_prefix='cameras_details'), name='dispatch')
 class CameraDetailsView(generics.ListAPIView):
     """Get the details of cameras (name, brand, model, location)"""
     permission_classes = [IsAuthenticated, IsAdminUser]
+    pagination_class = CursorPagination
+    pagination_class.page_size = 15
     serializer_class = CameraDetailsSerializer
     queryset = Camera.objects.all().select_related('model__brand')
 
 
+@method_decorator(cache_page(60 * 60 * 24 * 30,
+                             key_prefix='cameras_details_with_live_url'),
+                  name='dispatch')
 class CameraWithLiveUrlView(generics.ListAPIView):
     """Get the details of cameras with live streaming URL"""
     permission_classes = [IsAuthenticated]
+    pagination_class = CursorPagination
+    pagination_class.page_size = 12
     serializer_class = CameraWithLiveUrlSerializer
     queryset = Camera.objects.all().select_related('model__brand')
 
@@ -389,6 +400,7 @@ class CameraLiveUrlView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    @cache_post(timeout=60 * 60 * 24 * 30, key_prefix="cameras_live_urls")
     def post(self, request):
         devices = request.data.get('devices', [])
 
@@ -602,3 +614,16 @@ class CameraStatisticsView(APIView):
             "online": online_count,
             "offline": offline_count
         }, status=status.HTTP_200_OK)
+
+
+class AutomationListView(generics.RetrieveUpdateAPIView):
+    """Get and update Automation status."""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    queryset = Automation.objects.all()
+    serializer_class = AutomationSerializer
+
+    def get_object(self):
+        """Return the first (singleton) automation record"""
+        obj, created = Automation.objects.get_or_create(id=Automation.objects.first(
+        ).id if Automation.objects.exists() else None, defaults={'active': True})
+        return obj

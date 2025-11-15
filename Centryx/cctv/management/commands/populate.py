@@ -19,10 +19,8 @@ class Command(BaseCommand):
         site.domain = 'localhost:8000'
         site.name = 'Centryx Local'
         site.save()
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Site configured: {
-                    site.domain}"))
+        self.stdout.write(self.style.SUCCESS(
+            f"Site configured: {site.domain}"))
 
         # -------------------------
         # 1) Users data
@@ -98,3 +96,26 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.WARNING(
                         f"Brand '{brand_name}' already exists."))
+
+        # -------------------------
+        # 3) Set automation to true
+        # -------------------------
+        from cctv.models import Automation
+        automation, created = Automation.objects.get_or_create()
+        if created:
+            automation.active = True
+            automation.save()
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Automation set to active."))
+        else:
+            if not automation.active:
+                automation.active = True
+                automation.save()
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Automation updated to active."))
+            else:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Automation is already active."))

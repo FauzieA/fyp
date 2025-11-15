@@ -2,7 +2,7 @@ from integration.services.cctv_services import (get_dahua_client,
                                                 get_hikvision_client)
 from rest_framework import serializers
 
-from cctv.models import Brand, Camera, CCTVModel
+from cctv.models import Automation, Brand, Camera, CCTVModel
 
 dahua = get_dahua_client()
 hikvision = get_hikvision_client()
@@ -103,12 +103,19 @@ class CameraWithLiveUrlSerializer(serializers.ModelSerializer):
         identifier = obj.identifier
 
         try:
+            # ----------------------------
+            #  Dahua
+            # ----------------------------
             if brand_name == 'dahua':
                 response = brands['dahua'].get_hls_live_list(
                     device_id=identifier)
                 if str(response.get("code")) == "200":
                     return response.get("url")
                 return None
+
+            # ----------------------------
+            #  Hikvision
+            # ----------------------------
             elif brand_name == 'hikvision':
                 response = brands['hikvision'].get_stream(
                     device_id=identifier,
@@ -116,7 +123,10 @@ class CameraWithLiveUrlSerializer(serializers.ModelSerializer):
                 if response.get("errorCode") == "0":
                     return response.get("url")
                 return None
-            # Continue with other brands as needed
+
+            # ------------------------------
+            #  Other brands start from here
+            # ------------------------------
 
             else:
                 return None
@@ -124,3 +134,10 @@ class CameraWithLiveUrlSerializer(serializers.ModelSerializer):
         except Exception as e:
             # Return None if there's an error fetching the URL
             return None
+
+
+class AutomationSerializer(serializers.ModelSerializer):
+    """Serializer for Automation Model"""
+    class Meta:
+        model = Automation
+        fields = ['active']

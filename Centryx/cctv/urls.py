@@ -1,10 +1,10 @@
 from django.urls import path
 
-from cctv.views import (AddCCTVView, BrandListView, BrandModelListView,
-                        CameraDetailsView, CameraLiveUrlView,
-                        CameraRecordingUrlView, CameraStatisticsView,
-                        CameraWithLiveUrlView, DeleteCCTVView,
-                        GetDeviceStatusView, GetStreamUrlView)
+from cctv.views import (AddCCTVView, AutomationListView, BrandListView,
+                        BrandModelListView, CameraDetailsView,
+                        CameraLiveUrlView, CameraRecordingUrlView,
+                        CameraStatisticsView, CameraWithLiveUrlView,
+                        DeleteCCTVView, GetDeviceStatusView, GetStreamUrlView)
 
 urlpatterns = [
     path(
@@ -50,4 +50,8 @@ urlpatterns = [
         'cameras/statistics/',
         CameraStatisticsView.as_view(),
         name='camera_statistics'),
+    path(
+        'automation/',
+        AutomationListView.as_view(),
+        name='automation_status'),
 ]
