@@ -6,8 +6,8 @@
 @HOST = http://127.0.0.1:8000
 @ADMIN_USERNAME = centryxadmin
 @ADMIN_PASSWORD = centryxpassword
-@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NTgxODUzOCwiaWF0IjoxNzYzMjI2NTM4LCJqdGkiOiJhZDI2MmQ3MDVlZTA0MzNjOGVhMzVmY2Y2YjcyYjczOSIsInVzZXJfaWQiOiIxIn0.V2EQ-Ip54CnltkYO9l2WU_YpEHuEtmRofEsRkgUxdA0
-@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzMjUyOTM4LCJpYXQiOjE3NjMyMjY1MzgsImp0aSI6ImU4ZDFiYzY5ZGMzODRjZTM5NzczZWQ4NjNkOGEwYjU3IiwidXNlcl9pZCI6IjEifQ.Cf2pcBNyEakeuSU_nu8pTh6HjA2_e_H01BH-HgM6Drk
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NTg5NzI4NCwiaWF0IjoxNzYzMzA1Mjg0LCJqdGkiOiI4MTEyNjMwNDVkZWM0MGMwYjdiMWI3ZTYyYjNjZjk4NSIsInVzZXJfaWQiOiIxIn0.HSzeSsHe00hWW6SmUA4DdmbCCXPQaVVk82TTa1xiOe4
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzMzMxNjg0LCJpYXQiOjE3NjMzMDUyODQsImp0aSI6ImVkZTcwMDJkOGFlNDQwNGFhNDM1OTJmYWNkY2FmMDBiIiwidXNlcl9pZCI6IjEifQ.UOxZoq_c7cBxydIPQSx0MgRyuNyMpJqYRA0etXBbY3E
 
 
 #####################################################################################################################
@@ -298,44 +298,29 @@ GET {{HOST}}/cctv/cameras/statistics/
 Authorization: Bearer {{access_token}}
 
 
-### 4) Get Recording Playback URLs for Specific Devices
-### Expected: 200 OK with dictionary of location: playback_url
-POST {{HOST}}/cctv/cameras/recording_urls/
+### 4) Get Recording Playback URLs - Page 1 (GET with query params)
+### Expected: 200 OK with paginated list of cameras with recording URLs
+GET {{HOST}}/cctv/cameras/recording_urls/?start_time=2025-11-11T00:00:00&end_time=2025-11-11T23:59:59&page=1
 Authorization: Bearer {{access_token}}
-Content-Type: application/json
 
-{
-    "devices": [
-        {
-            "brand": "Dahua",
-            "identifier": "AF051B9PAG00225",
-            "location": "Main Entrance",
-            "begin_time": "2025-11-11 00:00:00",
-            "end_time": "2025-11-11 23:59:59"
-        },
-        {
-            "brand": "Hikvision",
-            "identifier": "HIK123456",
-            "location": "Parking Lot",
-            "start_time": "2025-11-12T10:00:00",
-            "stop_time": "2025-11-12T11:00:00"
-        }
-    ]
-}
+
+### 4b) Get Recording Playback URLs - Page 2
+### Expected: 200 OK with next page of recording URLs
+GET {{HOST}}/cctv/cameras/recording_urls/?start_time=2025-11-11T00:00:00&end_time=2025-11-11T23:59:59&page=6
+Authorization: Bearer {{access_token}}
+
+
+### 4c) Get Recording Playback URLs - Page 3
+### Expected: 200 OK with third page of recording URLs
+GET {{HOST}}/cctv/cameras/recording_urls/?start_time=2025-11-11T00:00:00&end_time=2025-11-11T23:59:59&page=3
+Authorization: Bearer {{access_token}}
 
 
 ### 5) Get Live URLs for all Devices
 ### Expected: 200 OK with dictionary of device_id: live_url
-POST {{HOST}}/cctv/cameras/live_urls/
+GET  {{HOST}}/cctv/cameras/live_urls/
 Authorization: Bearer {{access_token}}
-Content-Type: application/json
 
-{
-    "devices": [
-        {"brand": "Dahua", "identifier": "AF051B9PAG00225", "location": "Main Entrance"},
-        {"brand": "Hikvision", "identifier": "HIK123456", "location": "Parking Lot"}
-    ]
-}
 
 
 ### 6) Get Camera Details (name, brand, model, location) using pagination first 10
@@ -359,6 +344,18 @@ Authorization: Bearer {{access_token}}
 ### 7) Get Cameras with Live URLs (identifier, name, location, brand, live_url)
 ### Expected: 200 OK with list of cameras and their live streaming URLs
 GET {{HOST}}/cctv/cameras/monitoring/
+Authorization: Bearer {{access_token}}
+
+
+### 7b) Search Cameras by name or location (e.g., search for "Entrance")
+### Expected: 200 OK with filtered list of cameras matching search query
+GET {{HOST}}/cctv/cameras/monitoring/?search=100
+Authorization: Bearer {{access_token}}
+
+
+### 7c) Search cameras by name or location with spaces (e.g., search for "Main Gate")
+### Expected: 200 OK with filtered list of cameras matching search query
+GET {{HOST}}/cctv/cameras/monitoring/?search=Main%20Gate
 Authorization: Bearer {{access_token}}
 
 

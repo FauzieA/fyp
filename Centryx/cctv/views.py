@@ -2,11 +2,14 @@ import re
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django.core.cache import cache
+
+from cctv.tasks import populate_live_urls_cache
 from integration.services.cctv_services import (get_dahua_client,
                                                 get_hikvision_client)
 from rest_framework import generics, status, filters
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.pagination import CursorPagination
+from rest_framework.pagination import CursorPagination, PageNumberPagination
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,7 +18,8 @@ from cctv.decorators import cache_post
 from cctv.models import Automation, Brand, Camera
 from cctv.serializers import (AutomationSerializer, BrandSerializer,
                               CameraCreateSerializer, CameraDetailsSerializer,
-                              CameraWithLiveUrlSerializer)
+                              CameraWithLiveUrlSerializer, CameraRecordingUrlSerializer,
+                              CameraLiveUrlSerializer)
 
 dahua = get_dahua_client()
 hikvision = get_hikvision_client()
@@ -299,7 +303,11 @@ class GetDeviceStatusView(APIView):
                 {"error": "Missing brand"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+        if not identifier:
+            return Response(
+                {"error": "Missing identifier"},
+                status=status.HTTP_400_BAD_REQUEST
+                        )
         try:
             match brand_name.lower():
                 # ----------------------------
@@ -324,10 +332,14 @@ class GetDeviceStatusView(APIView):
                 #  Dahua
                 # ----------------------------
                 case 'dahua':
-                    if not identifier:
+                    camera = Camera.objects.filter(
+                        identifier=identifier,
+                        model__brand__name__iexact='hikvision'
+                    ).first()
+                    if camera is None:
                         return Response(
-                            {"error": "Missing identifier"},
-                            status=status.HTTP_400_BAD_REQUEST
+                            {"error": "Camera not found"},
+                            status=status.HTTP_404_NOT_FOUND
                         )
                     data = dahua.get_device_status(device_id=identifier)
                     return Response({"Identifier": identifier,
@@ -399,147 +411,88 @@ class CameraWithLiveUrlView(generics.ListAPIView):
 
 
 class CameraLiveUrlView(APIView):
-    """Get live streaming URLs for specified devices (Multiple devices)
+    """Get live streaming URLs for all cameras (GET, no request body).
+
+    Uses a canonical cache key and a stale-while-revalidate strategy:
+    - If cached payload exists: return it immediately (200) and enqueue
+      a background refresh (the task will no-op if another refresh is running).
+    - If no cache exists: enqueue background population and return 202 Accepted.
     """
     permission_classes = [IsAuthenticated]
 
-    @cache_post(timeout=60 * 60 * 24 * 30, key_prefix="cameras_live_urls")
-    def post(self, request):
-        devices = request.data.get('devices', [])
+    CACHE_KEY = "cameras:live_urls:all"
+    CACHE_TTL = 60 * 5
 
-        if not devices:
-            return Response(
-                {"error": "No devices provided. Send 'devices' array with brand, identifier, and location."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    def get(self, request):
+        # Try to return cached payload immediately
+        cached = None
+        try:
+            cached = cache.get(self.CACHE_KEY)
+        except Exception:
+            cached = None
 
-        result = {}
+        # Enqueue background refresh in any case (task will skip if lock present)
+        try:
+            populate_live_urls_cache.delay(cache_key=self.CACHE_KEY, ttl=self.CACHE_TTL)
+        except Exception:
+            # Don't fail the request if task enqueueing fails
+            pass
 
-        for device in devices:
-            brand_name = device.get('brand', '').lower()
-            identifier = device.get('identifier')
-            location = device.get('location', 'Unknown Location')
+        if cached is not None:
+            return Response(cached, status=status.HTTP_200_OK)
 
-            if not brand_name or not identifier:
-                result[location] = None
-                continue
-
-            try:
-                # ----------------------------
-                #  Dahua
-                # ----------------------------
-                if brand_name == 'dahua':
-                    response = brands['dahua'].get_hls_live_list(
-                        device_id=identifier)
-                    if str(response.get("code")) == "200":
-                        result[location] = response.get("url")
-                    else:
-                        result[location] = None
-
-                # ----------------------------
-                #  Hikvision
-                # ----------------------------
-                elif brand_name == 'hikvision':
-                    response = brands['hikvision'].get_stream(
-                        device_id=identifier,
-                        type_='1',
-                        expire_time=600
-                    )
-                    if response.get("errorCode") == "0":
-                        result[location] = response.get("stream_url")
-                    else:
-                        result[location] = None
-                else:
-                    result[location] = None
-
-            except Exception as e:
-                result[location] = None
-
-        return Response(result, status=status.HTTP_200_OK)
+        # No cache yet — tell client we've accepted the request and are populating
+        return Response({"message": "Live URLs are being populated. Try again shortly."},
+                        status=status.HTTP_202_ACCEPTED)
 
 
-class CameraRecordingUrlView(APIView):
-    """Get recording playback URLs for specified devices (Multiple devices)
+class CameraRecordingUrlView(generics.ListAPIView):
+    """Get recording playback URLs for user's cameras with pagination
+    Query params: start_time, end_time, page (optional)
     """
     permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        devices = request.data.get('devices', [])
-
-        if not devices:
+    serializer_class = CameraRecordingUrlSerializer
+    pagination_class = PageNumberPagination
+    pagination_class.page_size = 9
+    
+    def get_queryset(self):
+        """
+        Returns all cameras with their related brand information.
+        Optimized with select_related to prevent N+1 queries.
+        All users see the same cameras - no user-specific filtering.
+        """
+        return Camera.objects.all().select_related('model__brand')
+    
+    def get_serializer_context(self):
+        """Pass time parameters to serializer via context"""
+        context = super().get_serializer_context()
+        context['start_time'] = self.request.query_params.get('start_time')
+        context['end_time'] = self.request.query_params.get('end_time')
+        return context
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to validate time parameters"""
+        start_time = request.query_params.get('start_time')
+        end_time = request.query_params.get('end_time')
+        
+        if not start_time or not end_time:
             return Response(
-                {"error": "No devices provided. Send 'devices' array with brand, identifier, location, and time range."},
+                {"error": "start_time and end_time query parameters are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        # Build queryset and paginate (so we don't call external APIs for all cameras at once)
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
 
-        result = {}
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            results = [{'name': item.get('name'), 'recording_url': item.get('recording_url')} for item in serializer.data]
+            return self.get_paginated_response(results)
 
-        for device in devices:
-            brand_name = device.get('brand', '').lower()
-            identifier = device.get('identifier')
-            location = device.get('location', 'Unknown Location')
-
-            if not brand_name or not identifier:
-                result[location] = None
-                continue
-
-            try:
-                # ----------------------------
-                #  Dahua
-                # ----------------------------
-                if brand_name == 'dahua':
-                    begin_time = device.get('begin_time')
-                    end_time = device.get('end_time')
-
-                    if not begin_time or not end_time:
-                        result[location] = None
-                        continue
-
-                    # Convert ISO format to Dahua format if needed
-                    # ISO: 2025-11-12T10:00:00 -> Dahua: 2025-11-12 10:00:00
-                    begin_time = begin_time.replace('T', ' ')
-                    end_time = end_time.replace('T', ' ')
-
-                    response = brands['dahua'].get_hls_playback_list(
-                        device_id=identifier,
-                        begin_time=begin_time,
-                        end_time=end_time
-                    )
-                    if str(response.get("code")) == "200":
-                        result[location] = response.get("url")
-                    else:
-                        result[location] = None
-
-                # ----------------------------
-                #  Hikvision
-                # ----------------------------
-                elif brand_name == 'hikvision':
-                    start_time = device.get('start_time')
-                    stop_time = device.get('stop_time')
-
-                    if not start_time or not stop_time:
-                        result[location] = None
-                        continue
-
-                    response = brands['hikvision'].get_stream(
-                        device_id=identifier,
-                        type_='2',
-                        start_time=start_time,
-                        stop_time=stop_time,
-                        expire_time=600
-                    )
-                    if response.get("errorCode") == "0":
-                        result[location] = response.get("stream_url")
-                    else:
-                        result[location] = None
-
-                else:
-                    result[location] = None
-
-            except Exception as e:
-                result[location] = None
-
-        return Response(result, status=status.HTTP_200_OK)
+        # Not paginated - serialize full queryset
+        serializer = self.get_serializer(queryset, many=True)
+        results = [{'name': item.get('name'), 'recording_url': item.get('recording_url')} for item in serializer.data]
+        return Response(results, status=status.HTTP_200_OK)
 
 
 class CameraStatisticsView(APIView):
