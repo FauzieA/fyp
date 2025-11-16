@@ -4,7 +4,8 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from integration.services.cctv_services import (get_dahua_client,
                                                 get_hikvision_client)
-from rest_framework import generics, status
+from rest_framework import generics, status, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -392,6 +393,8 @@ class CameraWithLiveUrlView(generics.ListAPIView):
     pagination_class = CursorPagination
     pagination_class.page_size = 12
     serializer_class = CameraWithLiveUrlSerializer
+    search_fields = ['name', 'location']
+    filter_backends = [filters.SearchFilter]
     queryset = Camera.objects.all().select_related('model__brand')
 
 
