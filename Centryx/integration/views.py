@@ -54,10 +54,11 @@ class GetDahuaMotionStatusView(APIView):
 class ListUsersView(generics.ListAPIView):
     """API view to list users with search and pagination support."""
     permission_classes = [IsAuthenticated, IsAdminUser]
-    queryset = User.objects.all()
+    queryset = User.objects.all().order_by('id')
+    User.objects.all().order_by('id')
     serializer_class = CustomUserSerializer
     pagination_class = PageNumberPagination
-    pagination_class.page_size = 1
-    ordering = ['date_joined']  # Use a valid field
+    pagination_class.page_size = 10
+    ordering = ['date_joined']
     filter_backends = [SearchFilter]
     search_fields = ['username', 'email', 'first_name', 'last_name']

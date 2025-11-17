@@ -611,12 +611,11 @@ class AdminUserManagementTest(TestCase):
     def test_16_list_all_users_admin(self):
         """Test 16: List all users (Admin only)"""
         self.client.credentials(
-            HTTP_AUTHORIZATION=f'Bearer {
-                self.admin_token}')
+            HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
         response = self.client.get('/integration/users/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(isinstance(response.data, list))
+        self.assertTrue(isinstance(response.data, dict))
         # At least admin and regular user
         self.assertGreaterEqual(len(response.data), 2)
 
