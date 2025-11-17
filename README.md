@@ -56,7 +56,7 @@ python manage.py test
 python manage.py populate
 ```
 
-### How to Run the Backend
+### Run the Backend
 
 ```bash
 python manage.py runserver
