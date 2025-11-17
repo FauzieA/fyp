@@ -1,7 +1,9 @@
 import random
 import uuid
+
 from django.core.management.base import BaseCommand
-from cctv.models import Brand, CCTVModel, Camera
+
+from cctv.models import Brand, Camera, CCTVModel
 
 
 class Command(BaseCommand):

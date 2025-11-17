@@ -7,7 +7,7 @@
 @ADMIN_USERNAME = centryxadmin
 @ADMIN_PASSWORD = centryxpassword
 @refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NTk2OTI1NywiaWF0IjoxNzYzMzc3MjU3LCJqdGkiOiJkMDg3NzFmMjE0MTI0OWUwOWQ3ZmVkMTJiNzY4MmYyYyIsInVzZXJfaWQiOiIxIn0.pSO4z6xIpS9k6OkANBtCk2o_DXoAlZsvF6eXja_iTKs
-@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzNDAzNjU3LCJpYXQiOjE3NjMzNzcyNTcsImp0aSI6IjYwNWUxY2FmMWI1ZjQwZmJiOGMxZGFlNDczMWZlNzQyIiwidXNlcl9pZCI6IjEifQ.dWqsRvDLF9MjvhVPl2m3P1ldKCXV23fAuPr7uxhURdk
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzNDE4NjU4LCJpYXQiOjE3NjMzOTIyNTgsImp0aSI6ImY0YmU1OTFhZTc5NTQ4MmFhODg3MDVkY2RmOTBiY2Y4IiwidXNlcl9pZCI6IjEifQ.lXKxSPWoXD-WzTsbthgQnb7-0MnlMxsw1xBjurXivlw
 
 
 #####################################################################################################################
@@ -46,7 +46,7 @@ POST {{HOST}}/auth/registration/verify-email/
 Content-Type: application/json
 
 {
-  "key": "Mg:1vIUkw:QKZU59qdE_RdEXVMGx7vBkn_kharpX27c2p2Sc8vwtU"
+  "key": "Mg:1vL0qd:ywPkZM87oXexjmYiikxq-p66SafqF4OXX8jrmzQGIls"
 }
 
 
@@ -336,7 +336,7 @@ Authorization: Bearer {{access_token}}
 
 ### 6b) Get Camera Details (name, brand, model, location) using pagination next 15
 ### Expected: 200 OK with list of cameras
-GET {{HOST}}/cctv/cameras/?cursor=cD0yMDI1LTExLTE1KzA5JTNBNTMlM0E0Mi43NjkzODElMkIwMCUzQTAw
+GET {{HOST}}/cctv/cameras/?cursor=cD0yMDI1LTExLTE3KzE1JTNBMDYlM0E1OS4zOTUyNzYlMkIwMCUzQTAw
 Authorization: Bearer {{access_token}}
 
 
@@ -360,7 +360,7 @@ Authorization: Bearer {{access_token}}
 
 ### 7c) Search cameras by name or location with spaces (e.g., search for "Main Gate")
 ### Expected: 200 OK with filtered list of cameras matching search query
-GET {{HOST}}/cctv/cameras/monitoring/?search=Main%20Gate
+GET {{HOST}}/cctv/cameras/monitoring/?search=Main+Gate
 Authorization: Bearer {{access_token}}
 
 
@@ -411,13 +411,6 @@ Authorization: Bearer {{access_token}}
     "dev_password": "L2714ECF",
     "category_code": "IPC"
 }
-
-
-
-### 3) Get Camera Statistics (total, online, offline counts)
-### Expected: 200 OK with camera statistics
-GET {{HOST}}/cctv/cameras/statistics/
-Authorization: Bearer {{access_token}}
 
 
 ### 2) Delete a Dahua CCTV device

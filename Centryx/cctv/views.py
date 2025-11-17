@@ -1,9 +1,9 @@
 import re
 
 from django.core.cache import cache
+from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from django_filters.rest_framework import DjangoFilterBackend
 from integration.services.cctv_services import (get_dahua_client,
                                                 get_hikvision_client)
 from rest_framework import filters, generics, status
@@ -12,11 +12,9 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from cctv.decorators import cache_post
 from cctv.models import Automation, Brand, Camera
 from cctv.serializers import (AutomationSerializer, BrandSerializer,
                               CameraCreateSerializer, CameraDetailsSerializer,
-                              CameraLiveUrlSerializer,
                               CameraRecordingUrlSerializer,
                               CameraWithLiveUrlSerializer)
 from cctv.tasks import populate_live_urls_cache
@@ -187,7 +185,7 @@ class GetStreamUrlView(APIView):
 
     def get(self, request):
         """
-        Get the stream URL for a CCTV device.
+        Get the stream URL for a CCTV device, with caching.
         """
         brand_name = request.query_params.get('brand')
         identifier = request.query_params.get('identifier')
@@ -197,6 +195,13 @@ class GetStreamUrlView(APIView):
                 {"error": "Missing brand or identifier"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Build a cache key from all relevant query params
+        cache_key = f"stream_url:{brand_name}:{identifier}:{
+            request.query_params.urlencode()}"
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
 
         try:
             match brand_name.lower():
@@ -212,7 +217,6 @@ class GetStreamUrlView(APIView):
                             device_id=identifier
                         )
                     elif business_type == "playback":
-
                         begin_time = request.query_params.get('begin_time')
                         end_time = request.query_params.get('end_time')
                         if not begin_time or not end_time:
@@ -225,7 +229,6 @@ class GetStreamUrlView(APIView):
                             begin_time=begin_time,
                             end_time=end_time
                         )
-
                     else:
                         return Response(
                             {"error": f"Unsupported business_type '{business_type}'"},
@@ -240,16 +243,18 @@ class GetStreamUrlView(APIView):
                         )
 
                     # Success — standardize output
-                    return Response({
+                    result = {
                         "device_id": identifier,
                         "stream_url": response.get("url")
-                    })
+                    }
+                    # cache for 60 seconds
+                    cache.set(cache_key, result, timeout=60)
+                    return Response(result)
 
                 # ----------------------------
                 #  Hikvision
                 # ----------------------------
                 case 'hikvision':
-                    # Call Hikvision api
                     s_type = request.query_params.get('type')
                     start_time: str = request.query_params.get(
                         'start_time', "")
@@ -267,10 +272,13 @@ class GetStreamUrlView(APIView):
                                 "message", "Failed to get stream URL")},
                             status=status.HTTP_400_BAD_REQUEST
                         )
-                    return Response({
+                    result = {
                         "device_id": identifier,
                         "stream_url": response.get("stream_url")
-                    })
+                    }
+                    # cache for 60 seconds
+                    cache.set(cache_key, result, timeout=60)
+                    return Response(result)
                 case _:
                     return Response(
                         {"error": f"Unsupported brand '{brand_name}'"},
@@ -334,8 +342,9 @@ class GetDeviceStatusView(APIView):
                 case 'dahua':
                     camera = Camera.objects.filter(
                         identifier=identifier,
-                        model__brand__name__iexact='hikvision'
+                        model__brand__name__iexact='dahua'
                     ).first()
+
                     if camera is None:
                         return Response(
                             {"error": "Camera not found"},
@@ -432,7 +441,8 @@ class CameraLiveUrlView(APIView):
         except Exception:
             cached = None
 
-        # Enqueue background refresh in any case (task will skip if lock present)
+        # Enqueue background refresh in any case (task will skip if lock
+        # present)
         try:
             populate_live_urls_cache.delay(
                 cache_key=self.CACHE_KEY, ttl=self.CACHE_TTL)
@@ -463,19 +473,26 @@ class CameraLiveUrlView(APIView):
             else:
                 return Response(cached, status=status.HTTP_200_OK)
 
-        # No cache yet — tell client we've accepted the request and are populating
-        return Response({"message": "Live URLs are being populated. Try again shortly."},
-                        status=status.HTTP_202_ACCEPTED)
+        # No cache yet — tell client we've accepted the request and are
+        # populating
+        return Response(
+            {
+                "message": "Live URLs are being populated. Try again shortly."},
+            status=status.HTTP_202_ACCEPTED)
+
+
+class CameraRecordingPageNumberPagination(PageNumberPagination):
+    """Pagination class for camera recording URLs with page size of 9."""
+    page_size = 9
 
 
 class CameraRecordingUrlView(generics.ListAPIView):
-    """Get recording playback URLs for user's cameras with pagination
-    Query params: start_time, end_time, page (optional)
+    """Get recording playback URLs with pagination
+    Query params: start_time, end_time, page
     """
     permission_classes = [IsAuthenticated]
     serializer_class = CameraRecordingUrlSerializer
-    pagination_class = PageNumberPagination
-    pagination_class.page_size = 9
+    pagination_class = CameraRecordingPageNumberPagination
 
     def get_queryset(self):
         """
@@ -502,7 +519,8 @@ class CameraRecordingUrlView(generics.ListAPIView):
                 {"error": "start_time and end_time query parameters are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        # Build queryset and paginate (so we don't call external APIs for all cameras at once)
+        # Build queryset and paginate (so we don't call external APIs for all
+        # cameras at once)
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
 
@@ -532,7 +550,6 @@ class CameraStatisticsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.core.cache import cache
         stats = cache.get('camera_statistics')
         if stats is None:
             # If cache is missing, return default empty stats

@@ -174,7 +174,7 @@ REST_FRAMEWORK = {
 
     # Cursor pagination
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.CursorPagination",
-    "PAGE_SIZE": 15,
+    "PAGE_SIZE": 1,
 }
 
 # Simple JWT settings

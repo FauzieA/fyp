@@ -2,13 +2,12 @@ import json
 import threading
 
 from django.contrib.auth import get_user_model
-from rest_framework import status
+from rest_framework import generics, status
+from rest_framework.filters import SearchFilter
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import generics
-from rest_framework.filters import SearchFilter
-from rest_framework.pagination import PageNumberPagination
 
 from integration.serializers import CustomUserSerializer
 
@@ -50,7 +49,6 @@ class GetDahuaMotionStatusView(APIView):
         except Exception as e:
             return Response({"error": str(e)},
                             status=status.HTTP_400_BAD_REQUEST)
-
 
 
 class ListUsersView(generics.ListAPIView):

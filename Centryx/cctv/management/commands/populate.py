@@ -1,9 +1,10 @@
-from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
-from django.contrib.sites.models import Site
 from allauth.account.models import EmailAddress
-from cctv.models import Brand
+from django.contrib.auth import get_user_model
+from django.contrib.sites.models import Site
+from django.core.management.base import BaseCommand
 from integration.models import Profile
+
+from cctv.models import Brand
 
 User = get_user_model()
 
