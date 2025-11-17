@@ -6,8 +6,8 @@
 @HOST = http://127.0.0.1:8000
 @ADMIN_USERNAME = centryxadmin
 @ADMIN_PASSWORD = centryxpassword
-@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NTk0MTE0OSwiaWF0IjoxNzYzMzQ5MTQ5LCJqdGkiOiIxNzhlNDI3YmUyNjg0ZTdhOTc3OGRiMjA1ODQ4OGZkMCIsInVzZXJfaWQiOiIxIn0.ptM81OTLEIfIYAPJ6IoJRVyVqS147LDeDZ3jPDueH_8
-@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzMzc1NTQ5LCJpYXQiOjE3NjMzNDkxNDksImp0aSI6ImEwOGRlYzdiMzU3YjRmMjY5MzFmZDNhMmQ1MDA3NjBmIiwidXNlcl9pZCI6IjEifQ.pWH2dsZN2_F_nRhdhsZPmI4atG1yOb6fYfH9xfX6MGQ
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NTk2OTI1NywiaWF0IjoxNzYzMzc3MjU3LCJqdGkiOiJkMDg3NzFmMjE0MTI0OWUwOWQ3ZmVkMTJiNzY4MmYyYyIsInVzZXJfaWQiOiIxIn0.pSO4z6xIpS9k6OkANBtCk2o_DXoAlZsvF6eXja_iTKs
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzNDAzNjU3LCJpYXQiOjE3NjMzNzcyNTcsImp0aSI6IjYwNWUxY2FmMWI1ZjQwZmJiOGMxZGFlNDczMWZlNzQyIiwidXNlcl9pZCI6IjEifQ.dWqsRvDLF9MjvhVPl2m3P1ldKCXV23fAuPr7uxhURdk
 
 
 #####################################################################################################################
@@ -255,6 +255,11 @@ Content-Type: application/json
 GET {{HOST}}/integration/users/
 Authorization: Bearer {{access_token}}
 
+## 16a) List users with search query (e.g., search for "testudser")
+### Expected: 200 OK with filtered list of users matching search query
+GET {{HOST}}/integration/users/?search=admin
+Authorization: Bearer {{access_token}}
+
 
 ### 17) Delete a user by ID (Admin only)
 ### Expected: 204 No Content on success
@@ -406,6 +411,13 @@ Authorization: Bearer {{access_token}}
     "dev_password": "L2714ECF",
     "category_code": "IPC"
 }
+
+
+
+### 3) Get Camera Statistics (total, online, offline counts)
+### Expected: 200 OK with camera statistics
+GET {{HOST}}/cctv/cameras/statistics/
+Authorization: Bearer {{access_token}}
 
 
 ### 2) Delete a Dahua CCTV device

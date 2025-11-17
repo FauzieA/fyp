@@ -1,14 +1,12 @@
 import re
 
+from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from django.core.cache import cache
-
-from cctv.tasks import populate_live_urls_cache
+from django_filters.rest_framework import DjangoFilterBackend
 from integration.services.cctv_services import (get_dahua_client,
                                                 get_hikvision_client)
-from rest_framework import generics, status, filters
-from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, generics, status
 from rest_framework.pagination import CursorPagination, PageNumberPagination
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -18,8 +16,10 @@ from cctv.decorators import cache_post
 from cctv.models import Automation, Brand, Camera
 from cctv.serializers import (AutomationSerializer, BrandSerializer,
                               CameraCreateSerializer, CameraDetailsSerializer,
-                              CameraWithLiveUrlSerializer, CameraRecordingUrlSerializer,
-                              CameraLiveUrlSerializer)
+                              CameraLiveUrlSerializer,
+                              CameraRecordingUrlSerializer,
+                              CameraWithLiveUrlSerializer)
+from cctv.tasks import populate_live_urls_cache
 
 dahua = get_dahua_client()
 hikvision = get_hikvision_client()
@@ -307,7 +307,7 @@ class GetDeviceStatusView(APIView):
             return Response(
                 {"error": "Missing identifier"},
                 status=status.HTTP_400_BAD_REQUEST
-                        )
+            )
         try:
             match brand_name.lower():
                 # ----------------------------
@@ -434,7 +434,8 @@ class CameraLiveUrlView(APIView):
 
         # Enqueue background refresh in any case (task will skip if lock present)
         try:
-            populate_live_urls_cache.delay(cache_key=self.CACHE_KEY, ttl=self.CACHE_TTL)
+            populate_live_urls_cache.delay(
+                cache_key=self.CACHE_KEY, ttl=self.CACHE_TTL)
         except Exception:
             # Don't fail the request if task enqueueing fails
             pass
@@ -475,7 +476,7 @@ class CameraRecordingUrlView(generics.ListAPIView):
     serializer_class = CameraRecordingUrlSerializer
     pagination_class = PageNumberPagination
     pagination_class.page_size = 9
-    
+
     def get_queryset(self):
         """
         Returns all cameras with their related brand information.
@@ -483,19 +484,19 @@ class CameraRecordingUrlView(generics.ListAPIView):
         All users see the same cameras - no user-specific filtering.
         """
         return Camera.objects.all().select_related('model__brand')
-    
+
     def get_serializer_context(self):
         """Pass time parameters to serializer via context"""
         context = super().get_serializer_context()
         context['start_time'] = self.request.query_params.get('start_time')
         context['end_time'] = self.request.query_params.get('end_time')
         return context
-    
+
     def list(self, request, *args, **kwargs):
         """Override list to validate time parameters"""
         start_time = request.query_params.get('start_time')
         end_time = request.query_params.get('end_time')
-        
+
         if not start_time or not end_time:
             return Response(
                 {"error": "start_time and end_time query parameters are required"},
@@ -507,12 +508,14 @@ class CameraRecordingUrlView(generics.ListAPIView):
 
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            results = [{'name': item.get('name'), 'recording_url': item.get('recording_url')} for item in serializer.data]
+            results = [{'name': item.get('name'), 'recording_url': item.get(
+                'recording_url')} for item in serializer.data]
             return self.get_paginated_response(results)
 
         # Not paginated - serialize full queryset
         serializer = self.get_serializer(queryset, many=True)
-        results = [{'name': item.get('name'), 'recording_url': item.get('recording_url')} for item in serializer.data]
+        results = [{'name': item.get('name'), 'recording_url': item.get(
+            'recording_url')} for item in serializer.data]
         return Response(results, status=status.HTTP_200_OK)
 
 

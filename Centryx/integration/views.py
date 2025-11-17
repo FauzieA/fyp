@@ -6,6 +6,9 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import generics
+from rest_framework.filters import SearchFilter
+from rest_framework.pagination import PageNumberPagination
 
 from integration.serializers import CustomUserSerializer
 
@@ -49,14 +52,14 @@ class GetDahuaMotionStatusView(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
 
-class ListUsersView(APIView):
-    """
-    List all users - admin only endpoint
-    GET /integration/users/
-    """
-    permission_classes = [IsAuthenticated, IsAdminUser]
 
-    def get(self, request, *args, **kwargs):
-        users = User.objects.all()
-        serializer = CustomUserSerializer(users, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+class ListUsersView(generics.ListAPIView):
+    """API view to list users with search and pagination support."""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    queryset = User.objects.all()
+    serializer_class = CustomUserSerializer
+    pagination_class = PageNumberPagination
+    pagination_class.page_size = 1
+    ordering = ['date_joined']  # Use a valid field
+    filter_backends = [SearchFilter]
+    search_fields = ['username', 'email', 'first_name', 'last_name']

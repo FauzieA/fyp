@@ -17,27 +17,33 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Brand',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4,
+                 editable=False, primary_key=True, serialize=False)),
                 ('name', models.CharField(editable=False, max_length=100, unique=True)),
             ],
         ),
         migrations.CreateModel(
             name='CCTVModel',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4,
+                 editable=False, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=100, unique=True)),
-                ('brand', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='models', to='cctv.brand')),
+                ('brand', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, related_name='models', to='cctv.brand')),
             ],
         ),
         migrations.CreateModel(
             name='Camera',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4,
+                 primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=100)),
                 ('identifier', models.CharField(max_length=100, unique=True)),
                 ('location', models.CharField(max_length=255)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
-                ('model', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='cctvs', to='cctv.cctvmodel')),
+                ('created_at', models.DateTimeField(
+                    default=django.utils.timezone.now, editable=False)),
+                ('model', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE,
+                 related_name='cctvs', to='cctv.cctvmodel')),
             ],
             options={
                 'constraints': [models.UniqueConstraint(fields=('identifier', 'model'), name='unique_camera_per_model')],

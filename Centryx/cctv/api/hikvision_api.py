@@ -317,10 +317,10 @@ class HikvisionAPI:
             return {"stream_url": stream_url, "errorCode": 0}
 
     def list_devices_with_status(
-        self,
-        page_index: int = 1,
-        name: str = "",
-        page_size: int = 50):
+            self,
+            page_index: int = 1,
+            name: str = "",
+            page_size: int = 50):
         """
         List all devices with their online/offline status.
         If a filter (name) is applied, return only the status for the matching device (single device format).

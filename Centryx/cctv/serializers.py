@@ -153,7 +153,8 @@ class CameraLiveUrlSerializer(serializers.ModelSerializer):
         identifier = obj.identifier
         try:
             if brand_name == 'dahua':
-                response = brands['dahua'].get_hls_live_list(device_id=identifier)
+                response = brands['dahua'].get_hls_live_list(
+                    device_id=identifier)
                 if str(response.get('code')) == '200':
                     # return same key as previous implementation
                     return response.get('url')
@@ -193,12 +194,12 @@ class CameraRecordingUrlSerializer(serializers.ModelSerializer):
         """Fetch recording playback URL from the appropriate API based on brand"""
         brand_name = obj.model.brand.name.lower()
         identifier = obj.identifier
-        
+
         # Get time parameters from context
         context = self.context
         start_time = context.get('start_time')
         end_time = context.get('end_time')
-        
+
         if not start_time or not end_time:
             return None
 
@@ -211,7 +212,7 @@ class CameraRecordingUrlSerializer(serializers.ModelSerializer):
                 # ISO: 2025-11-12T10:00:00 -> Dahua: 2025-11-12 10:00:00
                 begin_time = start_time.replace('T', ' ')
                 end_time_formatted = end_time.replace('T', ' ')
-                
+
                 response = brands['dahua'].get_hls_playback_list(
                     device_id=identifier,
                     begin_time=begin_time,

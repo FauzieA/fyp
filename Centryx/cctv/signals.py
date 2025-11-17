@@ -19,9 +19,16 @@ def refresh_live_urls_on_camera_change(sender, instance, **kwargs):
     """
     Enqueue background refresh of live-urls cache and statistics cache when Camera changes.
     """
+    import logging
+    logger = logging.getLogger(__name__)
     try:
+        if kwargs.get('created', None) is not None:
+            logger.info(f"Camera save detected (created={kwargs['created']}): {instance}. Triggering cache update tasks.")
+        else:
+            logger.info(f"Camera delete detected: {instance}. Triggering cache update tasks.")
         populate_live_urls_cache.delay(cache_key=CACHE_KEY, ttl=CACHE_TTL)
+        logger.info("populate_live_urls_cache task queued.")
         update_camera_statistics_cache.delay()
-    except Exception:
-        # Don't let signal handlers raise; log elsewhere if needed
-        pass
+        logger.info("update_camera_statistics_cache task queued.")
+    except Exception as e:
+        logger.error(f"Signal handler error: {e}")

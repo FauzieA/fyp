@@ -29,6 +29,7 @@ def get_brand_status(brand_name):
     try:
         if brand_name == 'dahua':
             devices = client.get_all_device_statuses()
+            print(devices)
             logger.info(f"Dahua devices found: {devices}")
             total = len(devices)
             for device in devices:
@@ -51,11 +52,19 @@ def get_brand_status(brand_name):
     return {'brand': brand_name, 'total': total, 'online': online, 'offline': offline}
 
 # Main periodic task
+
+from celery import chord
+
 @shared_task
 def update_camera_statistics_cache():
     brand_names = list(get_all_brand_clients().keys())
-    job = group(get_brand_status.s(name) for name in brand_names)
-    results = job().get()  # Wait for all subtasks to finish
+    header = [get_brand_status.s(name) for name in brand_names]
+    chord(header)(aggregate_camera_statistics_cache.s())
+
+
+# Callback for chord to aggregate results and update cache
+@shared_task
+def aggregate_camera_statistics_cache(results):
     total = sum(r['total'] for r in results)
     online = sum(r['online'] for r in results)
     offline = sum(r['offline'] for r in results)

@@ -525,7 +525,6 @@ class DahuaAPI:
                     "Failed to generate HLS from recording"),
                 "response": response}
 
-
     def get_all_device_statuses(self, page_size=100):
         """
         Batch fetch all Dahua device IDs and their statuses.
