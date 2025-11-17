@@ -317,26 +317,38 @@ class HikvisionAPI:
             return {"stream_url": stream_url, "errorCode": 0}
 
     def list_devices_with_status(
-            self,
-            page_index: int = 1,
-            name: str = "",
-            page_size: int = 50):
-        """List all devices with their online/offline status."""
+        self,
+        page_index: int = 1,
+        name: str = "",
+        page_size: int = 50):
+        """
+        List all devices with their online/offline status.
+        If a filter (name) is applied, return only the status for the matching device (single device format).
+        Otherwise, return a batch list for all devices.
+        """
         body = {
             "pageIndex": page_index,
             "pageSize": page_size,
-            "filter": {"matchKey": name}
+            "filter": {"matchKey": name} if name else {}
         }
         data = self._post("hccgw/resource/v1/devices/get", body)
-
         devices = data.get("data", {}).get("deviceList", [])
-        return [
-            {
+        if name and devices:
+            # Return only the first matching device in single-device format
+            d = devices[0]
+            return {
                 "deviceName": d.get("name"),
                 "status": "Online" if d.get("online") == "1" else "Offline"
             }
-            for d in devices
-        ]
+        else:
+            # Return batch list for all devices
+            return [
+                {
+                    "deviceName": d.get("name"),
+                    "status": "Online" if d.get("online") == "1" else "Offline"
+                }
+                for d in devices
+            ]
 
     # ---------------------------------------------------------------------------
     # Motion Detection Alarm APIs

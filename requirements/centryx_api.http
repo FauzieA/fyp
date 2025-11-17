@@ -6,8 +6,8 @@
 @HOST = http://127.0.0.1:8000
 @ADMIN_USERNAME = centryxadmin
 @ADMIN_PASSWORD = centryxpassword
-@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NTg5NzI4NCwiaWF0IjoxNzYzMzA1Mjg0LCJqdGkiOiI4MTEyNjMwNDVkZWM0MGMwYjdiMWI3ZTYyYjNjZjk4NSIsInVzZXJfaWQiOiIxIn0.HSzeSsHe00hWW6SmUA4DdmbCCXPQaVVk82TTa1xiOe4
-@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzMzMxNjg0LCJpYXQiOjE3NjMzMDUyODQsImp0aSI6ImVkZTcwMDJkOGFlNDQwNGFhNDM1OTJmYWNkY2FmMDBiIiwidXNlcl9pZCI6IjEifQ.UOxZoq_c7cBxydIPQSx0MgRyuNyMpJqYRA0etXBbY3E
+@refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NTk0MTE0OSwiaWF0IjoxNzYzMzQ5MTQ5LCJqdGkiOiIxNzhlNDI3YmUyNjg0ZTdhOTc3OGRiMjA1ODQ4OGZkMCIsInVzZXJfaWQiOiIxIn0.ptM81OTLEIfIYAPJ6IoJRVyVqS147LDeDZ3jPDueH_8
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzMzc1NTQ5LCJpYXQiOjE3NjMzNDkxNDksImp0aSI6ImEwOGRlYzdiMzU3YjRmMjY5MzFmZDNhMmQ1MDA3NjBmIiwidXNlcl9pZCI6IjEifQ.pWH2dsZN2_F_nRhdhsZPmI4atG1yOb6fYfH9xfX6MGQ
 
 
 #####################################################################################################################

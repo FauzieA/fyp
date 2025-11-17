@@ -298,3 +298,14 @@ TRENCH_AUTH = {
 
 # Celery configuration
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+
+
+# Celery beat schedule for periodic tasks
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'update-camera-statistics-cache-every-5-minutes': {
+        'task': 'cctv.tasks.update_camera_statistics_cache',
+        'schedule': crontab(minute='*/5'),
+    },
+}

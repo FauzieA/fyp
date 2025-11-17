@@ -421,7 +421,8 @@ class CameraLiveUrlView(APIView):
     permission_classes = [IsAuthenticated]
 
     CACHE_KEY = "cameras:live_urls:all"
-    CACHE_TTL = 60 * 5
+    # Never expire by default; we refresh on Camera changes via signals/tasks.
+    CACHE_TTL = None
 
     def get(self, request):
         # Try to return cached payload immediately
@@ -439,7 +440,27 @@ class CameraLiveUrlView(APIView):
             pass
 
         if cached is not None:
-            return Response(cached, status=status.HTTP_200_OK)
+            # Always return a list of {location, live_url} objects
+            result = []
+            if isinstance(cached, dict):
+                for cam in cached.values():
+                    if isinstance(cam, dict):
+                        result.append({
+                            'location': cam.get('location'),
+                            'live_url': cam.get('live_url')
+                        })
+            elif isinstance(cached, list):
+                for cam in cached:
+                    if isinstance(cam, dict):
+                        result.append({
+                            'location': cam.get('location'),
+                            'live_url': cam.get('live_url')
+                        })
+            # If not a dict or list, just return as-is
+            if result:
+                return Response(result, status=status.HTTP_200_OK)
+            else:
+                return Response(cached, status=status.HTTP_200_OK)
 
         # No cache yet — tell client we've accepted the request and are populating
         return Response({"message": "Live URLs are being populated. Try again shortly."},
@@ -508,68 +529,12 @@ class CameraStatisticsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Get all cameras with their brand information
-        cameras = Camera.objects.select_related('model__brand').all()
-
-        total_cameras = cameras.count()
-        online_count = 0
-        offline_count = 0
-
-        for camera in cameras:
-            brand_name = camera.model.brand.name.lower()
-            identifier = camera.identifier
-
-            try:
-                # ----------------------------
-                #  Dahua
-                # ----------------------------
-                if brand_name == 'dahua':
-                    response = brands['dahua'].get_device_status(
-                        device_id=identifier)
-                    if response.get("code") == "200":
-                        status_value = response.get("status", "").lower()
-                        if status_value == "online":
-                            online_count += 1
-                        else:
-                            offline_count += 1
-                    else:
-                        offline_count += 1
-
-                # ----------------------------
-                #  Hikvision
-                # ----------------------------
-                elif brand_name == 'hikvision':
-                    # Hikvision returns list of all devices with status
-                    response = brands['hikvision'].list_devices_with_status()
-
-                    # Find this specific device in the response
-                    device_found = False
-                    if isinstance(response, list):
-                        for device in response:
-                            if device.get("deviceName") == camera.name:
-                                device_found = True
-                                if device.get("status") == "Online":
-                                    online_count += 1
-                                else:
-                                    offline_count += 1
-                                break
-
-                    if not device_found:
-                        offline_count += 1
-
-                else:
-                    # Unsupported brand, count as offline
-                    offline_count += 1
-
-            except Exception as e:
-                offline_count += 1
-                pass
-
-        return Response({
-            "total": total_cameras,
-            "online": online_count,
-            "offline": offline_count
-        }, status=status.HTTP_200_OK)
+        from django.core.cache import cache
+        stats = cache.get('camera_statistics')
+        if stats is None:
+            # If cache is missing, return default empty stats
+            stats = {"total": 0, "online": 0, "offline": 0}
+        return Response(stats, status=status.HTTP_200_OK)
 
 
 class AutomationListView(generics.RetrieveUpdateAPIView):

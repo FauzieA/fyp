@@ -1,18 +1,73 @@
+
 import time
 import logging
-
-from celery import shared_task
+from typing import Optional
+from celery import shared_task, group
 from django.core.cache import cache
 from django_redis import get_redis_connection
-
-from cctv.models import Camera
+from django.conf import settings
+from integration.services.cctv_services import get_dahua_client, get_hikvision_client
+from cctv.models import Brand, Camera
 from cctv.serializers import CameraLiveUrlSerializer
 
 logger = logging.getLogger(__name__)
 
+# Helper to get all brand clients dynamically
+def get_all_brand_clients():
+    return {
+        'dahua': get_dahua_client(),
+        'hikvision': get_hikvision_client(),
+    }
+
+
+# Subtask for brand status check
+@shared_task
+def get_brand_status(brand_name):
+    brand_clients = get_all_brand_clients()
+    client = brand_clients.get(brand_name)
+    total = online = offline = 0
+    try:
+        if brand_name == 'dahua':
+            devices = client.get_all_device_statuses()
+            logger.info(f"Dahua devices found: {devices}")
+            total = len(devices)
+            for device in devices:
+                if device.get('deviceStatus', '').lower() == 'online':
+                    online += 1
+                else:
+                    offline += 1
+        elif brand_name == 'hikvision':
+            devices = client.list_devices_with_status(page_size=500)
+            logger.info(f"Hikvision devices found: {devices}")
+            total = len(devices)
+            for device in devices:
+                if device.get('status', '').lower() == 'online':
+                    online += 1
+                else:
+                    offline += 1
+        # Add more brand logic here as needed
+    except Exception as e:
+        logger.exception(f"Error updating statistics for brand {brand_name}: {e}")
+    return {'brand': brand_name, 'total': total, 'online': online, 'offline': offline}
+
+# Main periodic task
+@shared_task
+def update_camera_statistics_cache():
+    brand_names = list(get_all_brand_clients().keys())
+    job = group(get_brand_status.s(name) for name in brand_names)
+    results = job().get()  # Wait for all subtasks to finish
+    total = sum(r['total'] for r in results)
+    online = sum(r['online'] for r in results)
+    offline = sum(r['offline'] for r in results)
+    stats = {"total": total, "online": online, "offline": offline}
+    logger.info(f"Setting camera_statistics cache: {stats}")
+    cache.set('camera_statistics', stats, timeout=300)
+    return stats
+
+
 
 @shared_task(bind=True)
-def populate_live_urls_cache(self, cache_key: str, ttl: int = 60 * 5, rate_delay: float = 0.21, lock_ttl: int = 60 * 5):
+def populate_live_urls_cache(self, cache_key: str, ttl: Optional[int] = None, rate_delay: float = 0.21, lock_ttl: int = 60 * 5):
     """
     Populate the cache_key with a mapping of location -> live_url for all cameras.
 
@@ -36,6 +91,7 @@ def populate_live_urls_cache(self, cache_key: str, ttl: int = 60 * 5, rate_delay
     try:
         cameras = Camera.objects.all().select_related("model__brand")
 
+        # Build aggregate keyed by camera id to ensure uniqueness even if locations repeat.
         result = {}
         # Helper: acquire a token from a simple Redis per-second counter.
         # This paces calls across all workers sharing the same Redis instance.
@@ -71,14 +127,15 @@ def populate_live_urls_cache(self, cache_key: str, ttl: int = 60 * 5, rate_delay
                 serializer = CameraLiveUrlSerializer(camera)
                 data = serializer.data
                 location = data.get("location") or "Unknown Location"
-                result[location] = data.get("live_url")
+                cid = str(camera.id)
+                result[cid] = {"camera_id": cid, "location": location, "live_url": data.get("live_url")}
             except Exception:
                 # Don't fail the whole task for a single camera; log and continue
                 logger.exception("Error fetching live URL for camera %s", getattr(camera, "identifier", "?"))
                 result[getattr(camera, "location", "Unknown Location")] = None
             
 
-        # Write final payload to cache
+        # Write final payload to cache (ttl=None => no expiry)
         try:
             cache.set(cache_key, result, ttl)
         except Exception:

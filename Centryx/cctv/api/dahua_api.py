@@ -524,3 +524,44 @@ class DahuaAPI:
                     "msg",
                     "Failed to generate HLS from recording"),
                 "response": response}
+
+
+    def get_all_device_statuses(self, page_size=100):
+        """
+        Batch fetch all Dahua device IDs and their statuses.
+        Returns a list of dicts: {deviceId, deviceStatus}
+        """
+        devices = []
+        page_num = 1
+        while True:
+            payload = {
+                "pageNum": str(page_num),
+                "pageSize": str(page_size)
+            }
+            response = self._post("api-iot/device/getDeviceList", payload)
+            if response.get("code") != "200" or not response.get("success"):
+                break
+            data = response.get("data", {})
+            page_data = data.get("pageData", [])
+            if not page_data:
+                break
+            for item in page_data:
+                device_list = item.get("deviceList", [])
+                for device in device_list:
+                    devices.append({
+                        "deviceId": device.get("deviceId"),
+                        "deviceStatus": device.get("deviceStatus")
+                    })
+            # Pagination
+            current_page = data.get("currentPage", page_num)
+            total_page = data.get("totalPage", page_num)
+            if current_page >= total_page:
+                break
+            page_num += 1
+        return devices
+
+
+if __name__ == "__main__":
+    dahua_api = DahuaAPI()
+    # Example usage: Add a device
+    print(dahua_api.get_all_device_statuses())
