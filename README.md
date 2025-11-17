@@ -22,35 +22,41 @@
   </table>
 </div>
 
-> **Note:** Make sure that the above technologies are installed and working properly before running the application or any background tasks. Run the commands below from the root directory (where manage.py is located).
+> **Note:** Make sure that the above technologies are installed and working properly before running the application or any background tasks. Run the commands below from the root directory in order (where manage.py is located).
 
 
-## Install Python Requirements
+### Install Python Requirements
 
 ```bash
 cd ~/Final-Year-Project
 pip install -r requirements/requirements.txt
 ```
 
-## How to Run Celery Worker
+### Run Celery Worker
 
 ```bash
 celery -A Centryx worker --loglevel=info
 ```
 
-## How to Run Celery Beat (Task Scheduler)
+### Run Celery Beat (Task Scheduler)
 
 ```bash
 celery -A Centryx beat --loglevel=info
 ```
 
-## How to Run Tests
+### Run Tests
 
 ```bash
 python manage.py test
 ```
 
-## How to Run the Backend
+### Populate the database
+
+```bash
+python manage.py populate
+```
+
+### How to Run the Backend
 
 ```bash
 python manage.py runserver
