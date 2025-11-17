@@ -3,6 +3,7 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from .models import Camera
+import logging
 from .tasks import populate_live_urls_cache, update_camera_statistics_cache
 
 # Helper to build cache key pattern for stream URLs
@@ -45,7 +46,6 @@ def refresh_live_urls_on_camera_change(sender, instance, **kwargs):
     """
     Enqueue background refresh of live-urls cache and statistics cache when Camera changes.
     """
-    import logging
     logger = logging.getLogger(__name__)
     try:
         if kwargs.get('created', None) is not None:

@@ -538,6 +538,7 @@ class DahuaAPI:
                 "pageSize": str(page_size)
             }
             response = self._post("api-iot/device/getDeviceList", payload)
+            print(response)  # For debugging purposes
             if response.get("code") != "200" or not response.get("success"):
                 break
             data = response.get("data", {})
@@ -559,8 +560,3 @@ class DahuaAPI:
             page_num += 1
         return devices
 
-
-if __name__ == "__main__":
-    dahua_api = DahuaAPI()
-    # Example usage: Add a device
-    print(dahua_api.get_all_device_statuses())

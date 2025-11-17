@@ -500,7 +500,7 @@ class CameraRecordingUrlView(generics.ListAPIView):
         Optimized with select_related to prevent N+1 queries.
         All users see the same cameras - no user-specific filtering.
         """
-        return Camera.objects.all().select_related('model__brand')
+        return Camera.objects.all().select_related('model__brand').order_by('id')
 
     def get_serializer_context(self):
         """Pass time parameters to serializer via context"""

@@ -412,6 +412,12 @@ Authorization: Bearer {{access_token}}
     "category_code": "IPC"
 }
 
+### 3) Get Camera Statistics (total, online, offline counts)
+### Expected: 200 OK with camera statistics
+GET {{HOST}}/cctv/cameras/statistics/
+Authorization: Bearer {{access_token}}
+
+
 
 ### 2) Delete a Dahua CCTV device
 ### Expected: 204 No Content on success
