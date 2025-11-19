@@ -559,4 +559,3 @@ class DahuaAPI:
                 break
             page_num += 1
         return devices
-

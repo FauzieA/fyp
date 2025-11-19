@@ -1,12 +1,14 @@
+import logging
+
 from django.core.cache import cache
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from .models import Camera
-import logging
 from .tasks import populate_live_urls_cache, update_camera_statistics_cache
 
 # Helper to build cache key pattern for stream URLs
+
 
 def invalidate_stream_url_cache():
     # Remove all keys starting with 'stream_url:'

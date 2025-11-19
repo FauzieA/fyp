@@ -7,7 +7,7 @@
 @ADMIN_USERNAME = centryxadmin
 @ADMIN_PASSWORD = centryxpassword
 @refresh_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc2NTk2OTI1NywiaWF0IjoxNzYzMzc3MjU3LCJqdGkiOiJkMDg3NzFmMjE0MTI0OWUwOWQ3ZmVkMTJiNzY4MmYyYyIsInVzZXJfaWQiOiIxIn0.pSO4z6xIpS9k6OkANBtCk2o_DXoAlZsvF6eXja_iTKs
-@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzNDE4NjU4LCJpYXQiOjE3NjMzOTIyNTgsImp0aSI6ImY0YmU1OTFhZTc5NTQ4MmFhODg3MDVkY2RmOTBiY2Y4IiwidXNlcl9pZCI6IjEifQ.lXKxSPWoXD-WzTsbthgQnb7-0MnlMxsw1xBjurXivlw
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzNTkzNjUzLCJpYXQiOjE3NjM1NjcyNTMsImp0aSI6IjgyZmM3MmFjOTZjZjRhYzk4NzdjYTZhNDc0MTAzYmVhIiwidXNlcl9pZCI6IjIifQ.YfY8mBkk-evdweWNFip3jDMHucTsobjAzN4hePNVA8M
 
 
 #####################################################################################################################
@@ -390,6 +390,13 @@ Content-Type: application/json
 {
     "active": false
 }
+
+
+### Connect to socket to listen for automation status
+#### wscat -c ws://127.0.0.1:8000/ws/automation/status/ --origin http://localhost:8000
+### Websocket client link : wss://frowsily-hunterlike-eneida.ngrok-free.dev/ws/automation/status/?token=
+### Listen for cameras statistics : wss://frowsily-hunterlike-eneida.ngrok-free.dev/ws/cctv/status/?token=
+
 
                   ########################################################################
                   #             Dahua CCTV Device Management Endpoints                  #

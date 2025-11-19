@@ -86,6 +86,14 @@ def aggregate_camera_statistics_cache(results):
     stats = {"total": total, "online": online, "offline": offline}
     logger.info(f"Camera statistics cache updated: {stats}")
     cache.set('camera_statistics', stats, timeout=300)
+
+    # Publish a single update to the camera_statistics channel
+    try:
+        redis_conn = get_redis_connection("default")
+        redis_conn.publish('camera_statistics', str(stats))
+    except Exception as e:
+        logger.error(f"Failed to publish camera statistics to Redis: {e}")
+
     return stats
 
 

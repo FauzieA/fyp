@@ -20,7 +20,6 @@ class GetDahuaMotionStatusView(APIView):
     def post(self, request, *args, **kwargs):
         try:
             data = request.data
-            print(data)
             # Handle both event formats
             event_type = data.get("msgType")
             device_id = data.get("deviceId")

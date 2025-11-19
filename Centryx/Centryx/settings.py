@@ -41,12 +41,16 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", ".ngrok-free.dev"]
-
-
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    ".ngrok-free.dev",
+    "frowsily-hunterlike-eneida.ngrok-free.dev"
+]
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -104,7 +108,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "Centryx.wsgi.application"
+ASGI_APPLICATION = "Centryx.asgi.application"
+
 
 
 # Database

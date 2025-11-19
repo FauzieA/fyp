@@ -1,6 +1,6 @@
 import re
 
-from django.core.cache import cache
+import redis
 from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -568,3 +568,15 @@ class AutomationListView(generics.RetrieveUpdateAPIView):
         obj, created = Automation.objects.get_or_create(id=Automation.objects.first(
         ).id if Automation.objects.exists() else None, defaults={'active': True})
         return obj
+
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        # After updating, set value in Redis and publish
+        try:
+            automation_status = response.data.get('active')
+            r = redis.Redis(host='localhost', port=6379, db=0)
+            r.set('automation_status', str(automation_status))
+            r.publish('automation_status', str(automation_status))
+        except Exception:
+            pass  # Ignore Redis errors for now
+        return response
