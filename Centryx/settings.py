@@ -297,6 +297,7 @@ TRENCH_AUTH = {
     },
 }
 # LIFX API configuration
-LIFX_API_TOKEN = env("LIFX_API_TOKEN")
+# Optional: admin access token for LIFX cloud (used for centralized account)
+# Do not raise during import — raise only when attempting API calls.
+LIFX_API_TOKEN = env("LIFX_API_TOKEN", default=None)
 REQUESTS_TIMEOUT = env.int("REQUESTS_TIMEOUT", 10)
-

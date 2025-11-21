@@ -1,17 +1,18 @@
-# lights/urls.py
 from django.urls import path
-from . import views_lifx as lifx_views
-from .views_brand import LightBrandListView
+
+from lights.views.brand import LightBrandListView
+from lights.views.lifx import LifxCloudListView, LifxRegisterDeviceView
+from lights.views.device import SmartLightListView, SmartLightControlView
 
 urlpatterns = [
-    # brand list 
-    path("brands/", LightBrandListView.as_view(), name="lights-brand-list"),
+    # brand
+    path("brands/", LightBrandListView.as_view(), name="lights-brands"),
 
     # LIFX cloud
-    path("cloud/list/", lifx_views.LifxCloudListView.as_view(), name="lifx-cloud-list"),
-    path("register/", lifx_views.LifxRegisterDeviceView.as_view(), name="lights-register"),
+    path("cloud/list/", LifxCloudListView.as_view(), name="lifx-cloud-list"),
+    path("register/", LifxRegisterDeviceView.as_view(), name="lifx-register"),
 
-    # local DB devices
-    path("devices/", lifx_views.SmartLightListView.as_view(), name="lights-device-list"),
-    path("devices/<uuid:pk>/control/", lifx_views.SmartLightControlView.as_view(), name="lights-device-control"),
+    # local SmartLight devices
+    path("devices/", SmartLightListView.as_view(), name="lights-device-list"),
+    path("devices/<uuid:pk>/control/", SmartLightControlView.as_view(), name="lights-device-control"),
 ]

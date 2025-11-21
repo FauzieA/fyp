@@ -12,60 +12,40 @@ LIFX_BASE_URL = "https://api.lifx.com/v1"
 class LifxApiError(Exception):
     pass
 
-
 class LIFXApi:
-    """
-    Minimal LIFX Cloud v1 client.
-    Uses LIFX_API_TOKEN from settings.
-    """
-
-    def __init__(self, token: Optional[str] = None, timeout: int | None = None):
-        self.token = token or getattr(settings, "LIFX_API_TOKEN", None)
+    def __init__(self):
+        self.base = LIFX_BASE_URL
+        self.token = getattr(settings, "LIFX_API_TOKEN", None)
         if not self.token:
-            raise LifxApiError("LIFX_API_TOKEN is not configured in settings")
-        self.headers = {"Authorization": f"Bearer {self.token}"}
-        self.timeout = timeout or getattr(settings, "REQUESTS_TIMEOUT", 10)
+            raise LifxApiError("LIFX_API_TOKEN is not configured in settings (set in .env)")
 
-    def list_all_lights(self) -> List[Dict[str, Any]]:
-        """Return a list of lights under the account."""
-        url = f"{LIFX_BASE_URL}/lights/all"
-        resp = requests.get(url, headers=self.headers, timeout=self.timeout)
-        logger.info("LIFX list_all_lights -> %s", resp.status_code)
+    def _request(self, method: str, path: str, params: dict = None, json_body: dict = None):
+        url = f"{self.base}{path}"
+        headers = {"Authorization": f"Bearer {self.token}"}
+        try:
+            resp = requests.request(method, url, headers=headers, params=params, json=json_body, timeout=10)
+        except requests.RequestException as e:
+            logger.exception("LIFX request failure")
+            raise LifxApiError(f"Network error during LIFX request: {e}")
         if resp.status_code == 401:
-            raise LifxApiError("Unauthorized - invalid LIFX token")
-        resp.raise_for_status()
-        return resp.json()
+            raise LifxApiError("LIFX authentication failed (401) - check token")
+        try:
+            resp.raise_for_status()
+        except requests.HTTPError:
+            logger.error("LIFX API error %s %s", resp.status_code, resp.text)
+            raise LifxApiError(f"LIFX API returned {resp.status_code}: {resp.text}")
+        try:
+            return resp.json()
+        except ValueError:
+            return resp.text
 
-    def get_light(self, device_id: str) -> Optional[Dict[str, Any]]:
-        """Return single light details or None if not found."""
-        url = f"{LIFX_BASE_URL}/lights/id:{device_id}"
-        resp = requests.get(url, headers=self.headers, timeout=self.timeout)
-        logger.info("LIFX get_light %s -> %s", device_id, resp.status_code)
-        if resp.status_code == 404:
-            return None
-        if resp.status_code == 401:
-            raise LifxApiError("Unauthorized - invalid LIFX token")
-        resp.raise_for_status()
-        data = resp.json()
-        # API returns list for lights endpoint; pick first item or dict
-        if isinstance(data, list) and data:
-            return data[0]
-        return data
+    #  wrappers
+    def list_all_lights(self):
+        return self._request("GET", "/lights/all")
 
-    def set_state(self, device_id: str, **kwargs) -> Dict[str, Any]:
-        """
-        Control light state. kwargs examples:
-          power='on'/'off', brightness=0.5, color='kelvin:3500', duration=1.0
-        """
-        url = f"{LIFX_BASE_URL}/lights/id:{device_id}/state"
-        resp = requests.put(url, headers=self.headers, json=kwargs, timeout=self.timeout)
-        logger.info("LIFX set_state %s %s -> %s", device_id, kwargs, resp.status_code)
-        if resp.status_code == 401:
-            raise LifxApiError("Unauthorized - invalid LIFX token")
-        resp.raise_for_status()
-        return resp.json()
-
-    # convenience wrappers
+    def get_light(self, device_id: str):
+        return self._request("GET", f"/lights/id:{device_id}")
+    
     def power_on(self, device_id: str):
         return self.set_state(device_id, power="on")
 

@@ -52,16 +52,13 @@ def register_light(light, brand_name="LIFX"):
     brand, _ = LightBrand.objects.get_or_create(name=brand_name)
 
     # Ensure model exists (LightModel)
-    model, _ = LightModel.objects.get_or_create(
-        name=light["label"],
-        brand=brand
+    # Create or get SmartLight
+    model, _ = LightModel.objects.get_or_create(name=payload["model_name"], brand=brand)
+    sl, created = SmartLight.objects.get_or_create(
+    cloud_device_id=payload["cloud_device_id"],
+    defaults={"model": model, "name": payload["model_name"]}
     )
 
-    # Create or get SmartLight
-    sl, created = SmartLight.objects.get_or_create(
-        cloud_device_id=light["id"],
-        defaults={"name": light["label"], "model": model}
-    )
 
     if USE_MOCK:
         print(f"Mock registered light: {sl.name} (Model: {sl.model.name}, Brand: {sl.model.brand.name}) Created: {created}")
