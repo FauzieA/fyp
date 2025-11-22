@@ -13,8 +13,6 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.core.cache import cache
 
 
-
-
 # List + search + filter + pagination handled with ListAPIView (uses DRF pagination)
 class SmartLightListView(ListAPIView):
     serializer_class = SmartLightSerializer

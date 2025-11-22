@@ -1,0 +1,200 @@
+# --- variables (set defaults here) ---
+@baseUrl = http://127.0.0.1:8000
+# Put the token value after you login (e.g. "eyJ...") - do NOT include "Bearer " here
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYzODI2ODMzLCJpYXQiOjE3NjM4MDA0MzMsImp0aSI6Ijg2NDY2ZjAwYjliZDQ0ZGM4NDFlMmZkZDBhODQxZDMwIiwidXNlcl9pZCI6IjIifQ.8RzA6pS8CqJS0ARAG42g6qP_cCkrM6tDsf28XgYmD-8
+
+@lightId = 5afc323e-f7f1-46d6-bce5-4d19dd68c7c5  
+
+###############################################
+# AUTH TESTS (OPTIONAL)
+###############################################
+
+### Login – get JWT token (if needed)
+POST {{baseUrl}}/auth/login/
+Content-Type: application/json
+
+{
+  "username": "FauzieA",
+  "password": "Fauxiyya22!"
+}
+
+### Verify token
+POST {{baseUrl}}/auth/token/verify/
+Content-Type: application/json
+
+{
+  "token": "{{token}}"
+}
+
+
+###############################################
+# 1. DASHBOARD STATS
+###############################################
+
+### Dashboard stats
+GET {{baseUrl}}/lights/stats/
+Authorization: Bearer {{token}}
+
+
+###############################################
+# 2. LIST / SEARCH / FILTER LIGHTS
+###############################################
+
+### List all registered lights
+GET {{baseUrl}}/lights/devices/
+Authorization: Bearer {{token}}
+
+### Search lights (name/location)
+GET {{baseUrl}}/lights/devices/?search=Test
+Authorization: Bearer {{token}}
+
+### Filter lights: ON
+GET {{baseUrl}}/lights/devices/?status=on
+Authorization: Bearer {{token}}
+
+### Filter lights: OFF
+GET {{baseUrl}}/lights/devices/?status=off
+Authorization: Bearer {{token}}
+
+### Combine: search + status filter
+GET {{baseUrl}}/lights/devices/?search=Test&status=on
+Authorization: Bearer {{token}}
+
+
+###############################################
+# 3. INDIVIDUAL LIGHT CONTROL
+###############################################
+
+### Turn ON a light
+POST {{baseUrl}}/lights/devices/{{lightId}}/control/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "power": "on"
+}
+
+### Turn OFF a light
+POST {{baseUrl}}/lights/devices/{{lightId}}/control/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "power": "off"
+}
+
+### Set brightness
+POST {{baseUrl}}/lights/devices/{{lightId}}/control/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "brightness": 0.7
+}
+
+### Set both power & brightness in one request
+POST {{baseUrl}}/lights/devices/{{lightId}}/control/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "power": "on",
+  "brightness": 0.9
+}
+
+
+###############################################
+# 4. DELETE A LIGHT
+###############################################
+
+### Delete a light
+DELETE {{baseUrl}}/lights/devices/{{lightId}}/
+Authorization: Bearer {{token}}
+
+
+###############################################
+# 5. BULK CONTROL
+###############################################
+
+### ALL ON
+POST {{baseUrl}}/lights/bulk_control/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "action": "all_on"
+}
+
+### ALL OFF
+POST {{baseUrl}}/lights/bulk_control/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "action": "all_off"
+}
+
+### DAY MODE
+POST {{baseUrl}}/lights/bulk_control/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "action": "day_mode"
+}
+
+### NIGHT MODE
+POST {{baseUrl}}/lights/bulk_control/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "action": "night_mode"
+}
+
+### ECO MODE
+POST {{baseUrl}}/lights/bulk_control/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "action": "eco_mode"
+}
+
+
+###############################################
+# 6. LIST BRANDS
+###############################################
+
+### List all brands
+GET {{baseUrl}}/lights/brands/
+Authorization: Bearer {{token}}
+
+
+###############################################
+# 7. LIFX CLOUD DEVICES
+###############################################
+
+### List ALL LIFX cloud devices
+GET {{baseUrl}}/lights/cloud/list/
+Authorization: Bearer {{token}}
+
+### List cloud devices NOT registered
+GET {{baseUrl}}/lights/cloud/list/?exclude_registered=1
+Authorization: Bearer {{token}}
+
+
+###############################################
+# 8. REGISTER A LIGHT
+###############################################
+
+### Register a new light
+POST {{baseUrl}}/lights/register/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Kitchen Lamp",
+  "location": "Kitchen",
+  "cloud_device_id": "PUT-LIFX-ID-HERE"
+}
