@@ -1,93 +1,144 @@
+# lights/api/views/lifx.py
+
+import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.db import transaction
+from lights.services.lifx_service import LIFXService, LifxApiError
+from lights.serializers import LifxCloudDeviceSerializer, SmartLightSerializer
+from lights.models import SmartLight, LightBrand, LightModel, DeviceAudit
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
-from lights.serializers import (
-    SmartLightCreateSerializer,
-    LifxCloudDeviceSerializer
-)
-from lights.models import LightBrand, LightModel, SmartLight, DeviceAudit
-from lights.api.lifx_api import LIFXApi, LifxApiError
+logger = logging.getLogger(__name__)
 
 
 class LifxCloudListView(APIView):
     """
-    GET: List all LIFX Cloud devices for this account.
+    GET /lifx/cloud/list/?exclude_registered=1
+    Returns all LIFX cloud devices, optionally excluding ones already registered locally.
     """
+    permission_classes = [IsAuthenticated, IsAdminUser]  # enforce JWT auth
+    service = LIFXService()
+
     def get(self, request):
-        api = LIFXApi()
-        try:
-            devices = api.list_all_lights()
-        except LifxApiError as e:
-            return Response({"detail": str(e)}, status=401)
+        exclude_registered = request.GET.get("exclude_registered") == "1"
 
-        out = [LifxCloudDeviceSerializer(d).data for d in devices]
-        return Response(out)
+        cloud_devices = self.service.fetch_all_cloud_lights()
+        out = []
+
+        # Fetch all registered cloud_device_ids in one query for optimization
+        registered_ids = set()
+        if exclude_registered:
+            registered_ids = set(
+                SmartLight.objects.values_list('cloud_device_id', flat=True)
+            )
+
+        for device in cloud_devices:
+            cloud_id = device.get("id")
+            device["status"] = self.service.map_lifx_status_to_field(device)
+
+            if exclude_registered and cloud_id in registered_ids:
+                continue
+
+            out.append(LifxCloudDeviceSerializer(device).data)
+
+        return Response({"results": out})
 
 
-class LifxRegisterDeviceView(APIView):
+class LifxRegisterView(APIView):
     """
-    POST: Register a cloud LIFX device to the local DB.
-
-    Body:
-    {
-        "cloud_device_id": "...",
-        "model_name": "...",
-        "name": "...",
-        "location": "..."
-    }
+    POST /lights/register/
+    User selects a cloud device from the list; only inputs name and location.
+    
     """
+    permission_classes = [IsAuthenticated, IsAdminUser]  # enforce JWT auth
+
+
     def post(self, request):
-        serializer = SmartLightCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+        cloud_device_id = request.data.get("cloud_device_id")
+        name = request.data.get("name")
+        location = request.data.get("location", "")
 
-        api = LIFXApi()
+        if not cloud_device_id or not name:
+            return Response(
+                {"error": "cloud_device_id and name are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Verify device exists in cloud account
+        service = LIFXService()
+
+        # fetch cloud metadata
         try:
-            metadata = api.get_light(data["cloud_device_id"])
+            cloud_meta = service.fetch_single_cloud_light(cloud_device_id)
+            if not cloud_meta:
+                return Response(
+                    {"error": "Cloud device not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
         except LifxApiError as e:
-            return Response({"detail": str(e)}, status=404)
-
-        # Ensure brand exists
-        brand, _ = LightBrand.objects.get_or_create(name="LIFX")
-
-        # Auto-create model
-        model, _ = LightModel.objects.get_or_create(
-            name=data["model_name"],
-            brand=brand,
-            defaults={"capabilities": metadata.get("product", {}).get("capabilities", {})},
-        )
-
-        # Determine final device name
-        name = (
-            data.get("name")
-            or metadata.get("label")
-            or metadata.get("user_supplied_name")
-            or f"{brand.name} {data['model_name']}"
-        )
-
-        # Create SmartLight entry
-        with transaction.atomic():
-            if SmartLight.objects.filter(cloud_device_id=data["cloud_device_id"]).exists():
-                return Response({"detail": "Device already registered"}, status=400)
-
-            light = SmartLight.objects.create(
-                name=name,
-                location=data.get("location", ""),
-                model=model,
-                cloud_device_id=data["cloud_device_id"],
-                is_on=(metadata.get("power") == "on"),
-                brightness=metadata.get("brightness"),
-                raw_meta=metadata,
+            return Response(
+                {"error": f"Failed to fetch cloud device: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-            DeviceAudit.objects.create(
-                device=light, action="register",
-                payload={"metadata": metadata}, result={"ok": True}
+        # Prevent duplicate registration
+        if SmartLight.objects.filter(cloud_device_id=cloud_device_id).exists():
+            return Response(
+                {"error": "This device is already registered"},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        from lights.serializers import SmartLightSerializer
-        return Response(SmartLightSerializer(light).data, status=201)
+        # Brand and Model setup
+        brand_name = "LIFX"  # fixed by developer
+        model_name = cloud_meta.get("product", {}).get("name", "Default Model")
+
+        brand, _ = LightBrand.objects.get_or_create(name=brand_name)
+        model, _ = LightModel.objects.get_or_create(name=model_name, brand=brand)
+
+        # Create SmartLight
+        light = SmartLight.objects.create(
+            name=name,
+            location=location,
+            model=model,
+            cloud_device_id=cloud_device_id,
+            is_on=cloud_meta.get("power") == "on",
+            brightness=cloud_meta.get("brightness", 1.0),
+            status=service.map_lifx_status_to_field(cloud_meta),
+            raw_meta=cloud_meta
+        )
+
+        # Audit
+        DeviceAudit.objects.create(
+            device=light,
+            action="register",
+            payload={"cloud_device_id": cloud_device_id, "name": name, "location": location, "cloud_meta": cloud_meta}
+        )
+
+        return Response(
+            {"success": True, "light_id": str(light.id)},
+            status=status.HTTP_201_CREATED
+        )
+
+class LifxControlView(APIView):
+    """
+    POST /lifx/<pk>/control/
+    { "power": "on", "brightness": 0.5 }
+    """
+    permission_classes = [IsAuthenticated]  # enforce JWT auth
+    service = LIFXService()
+
+    def post(self, request, pk):
+        try:
+            light = SmartLight.objects.get(pk=pk, brand="lifx")
+        except SmartLight.DoesNotExist:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            response = self.service.control_light(light, **request.data)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("LIFX control error")
+            return Response({"error": "internal error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"ok": True, "response": response})

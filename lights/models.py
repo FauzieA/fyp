@@ -30,6 +30,8 @@ class SmartLight(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
     location = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=20, default="unknown")
+
 
     model = models.ForeignKey(LightModel, on_delete=models.PROTECT, related_name='devices')
     cloud_device_id = models.CharField(max_length=255, unique=True)

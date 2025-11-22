@@ -19,6 +19,7 @@ class LightModelSerializer(serializers.ModelSerializer):
 
 class SmartLightSerializer(serializers.ModelSerializer):
     model = LightModelSerializer(read_only=True)
+    status = serializers.CharField(read_only=True)
 
     class Meta:
         model = SmartLight
@@ -31,6 +32,7 @@ class SmartLightSerializer(serializers.ModelSerializer):
             "local_ip",
             "is_on",
             "brightness",
+            "status",
             "raw_meta",
             "created",
         ]
@@ -59,3 +61,5 @@ class LifxCloudDeviceSerializer(serializers.Serializer):
     product = serializers.DictField(required=False)
     power = serializers.CharField(required=False)
     brightness = serializers.FloatField(required=False)
+    connected = serializers.BooleanField(required=False)
+    
